@@ -8,19 +8,27 @@ const io = new Server(server);
 
 app.use(express.static("public"));
 
-let players = {};       // { socketId: { name } }
+let players = {};      // { socketId: { name, team } }
+let teams = ["Red", "Blue", "Green", "Yellow"];  // Default teams
 let armed = false;
 let winner = null;
 
+// HOST sets teams
 io.on("connection", (socket) => {
 
-  // Player joins
-  socket.on("join", (name) => {
-    players[socket.id] = { name };
+  socket.emit("teamList", teams);
+
+  socket.on("setTeams", (newTeams) => {
+    teams = newTeams;
+    io.emit("teamList", teams);
+  });
+
+  // Player joins with name + team
+  socket.on("join", ({ name, team }) => {
+    players[socket.id] = { name, team };
     io.emit("playerList", Object.values(players));
   });
 
-  // Player buzz
   socket.on("buzz", () => {
     if (!armed || winner) return;
 
@@ -30,28 +38,24 @@ io.on("connection", (socket) => {
     io.emit("winner", winner);
   });
 
-  // Host arms the buzzer
   socket.on("arm", () => {
     armed = true;
     winner = null;
     io.emit("armed");
   });
 
-  // Host resets everything
   socket.on("reset", () => {
     armed = false;
     winner = null;
     io.emit("reset");
   });
 
-  // Player leaves
   socket.on("disconnect", () => {
     delete players[socket.id];
     io.emit("playerList", Object.values(players));
   });
-
 });
 
-server.listen(3000, () => {
-  console.log("Buzzer server running on port 3000");
+server.listen(process.env.PORT || 3000, () => {
+  console.log("Server running on port " + (process.env.PORT || 3000));
 });

@@ -9,6 +9,10 @@
   
   <h1>Host Panel</h1>
 
+<h3>Team Setup</h3>
+<input id="teamInput" placeholder="Red, Blue, Green" style="width:80%;padding:10px;">
+<button onclick="updateTeams()">Update Teams</button>
+
   <div id="players"></div>
 
   <button id="armBtn">ARM BUZZER</button>
@@ -16,33 +20,57 @@
 
   <h2 id="winner"></h2>
 
-  <script>
-    const socket = io();
+<script>
+const socket = io();
 
-    const playersDiv = document.getElementById("players");
-    const winnerDiv = document.getElementById("winner");
+const playersDiv = document.getElementById("players");
+const winnerDiv = document.getElementById("winner");
+const teamInput = document.getElementById("teamInput");
 
-    document.getElementById("armBtn").onclick = () => socket.emit("arm");
-    document.getElementById("resetBtn").onclick = () => socket.emit("reset");
+document.getElementById("armBtn").onclick = () => socket.emit("arm");
+document.getElementById("resetBtn").onclick = () => socket.emit("reset");
 
-    socket.on("playerList", (players) => {
-      playersDiv.innerHTML = "<h3>Players Joined:</h3>" +
-        players.map(p => `<div class="player">${p.name}</div>`).join("");
-    });
+function updateTeams() {
+  const teams = teamInput.value.split(",").map(t => t.trim()).filter(t => t);
+  socket.emit("setTeams", teams);
+}
 
-    socket.on("winner", (player) => {
-      winnerDiv.textContent = player.name + " BUZZED FIRST!";
-    });
+socket.on("teamList", (teams) => {
+  teamInput.value = teams.join(", ");
+});
 
-    socket.on("armed", () => {
-      winnerDiv.textContent = "Buzzers armed!";
-    });
+socket.on("playerList", (players) => {
+  let html = "<h3>Players By Team:</h3>";
 
-    socket.on("reset", () => {
-      winnerDiv.textContent = "";
-    });
+  // Group players by team
+  const grouped = {};
+  players.forEach(p => {
+    if (!grouped[p.team]) grouped[p.team] = [];
+    grouped[p.team].push(p.name);
+  });
 
-  </script>
+  for (let t in grouped) {
+    html += `<div class="teamBlock"><h4>${t}</h4>`;
+    html += grouped[t].map(name => `<div class="player">${name}</div>`).join("");
+    html += "</div>";
+  }
+
+  playersDiv.innerHTML = html;
+});
+
+socket.on("winner", (player) => {
+  winnerDiv.textContent = `${player.team} - ${player.name} buzzed first!`;
+});
+
+socket.on("armed", () => {
+  winnerDiv.textContent = "Buzzers armed!";
+});
+
+socket.on("reset", () => {
+  winnerDiv.textContent = "";
+});
+</script>
+
 
 </body>
 </html>

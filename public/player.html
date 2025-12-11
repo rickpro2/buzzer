@@ -11,6 +11,9 @@
     <h2>Enter your name</h2>
     <input id="nameInput" />
     <button id="joinBtn">Join</button>
+    <h2>Select your team</h2>
+<select id="teamSelect" style="font-size:20px;padding:10px;width:80%"></select>
+
   </div>
 
   <div id="buzzScreen" style="display:none;">
@@ -18,40 +21,48 @@
     <button id="buzzBtn" class="buzz-button">BUZZ</button>
   </div>
 
-  <script>
-    const socket = io();
+<script>
+const socket = io();
 
-    const joinScreen = document.getElementById("joinScreen");
-    const buzzScreen = document.getElementById("buzzScreen");
-    const statusText = document.getElementById("status");
-    const buzzBtn = document.getElementById("buzzBtn");
+const joinScreen = document.getElementById("joinScreen");
+const buzzScreen = document.getElementById("buzzScreen");
+const statusText = document.getElementById("status");
+const buzzBtn = document.getElementById("buzzBtn");
+const teamSelect = document.getElementById("teamSelect");
 
-    document.getElementById("joinBtn").onclick = () => {
-      const name = document.getElementById("nameInput").value.trim();
-      if (!name) return;
+// Receive team list updates from server
+socket.on("teamList", (teams) => {
+  teamSelect.innerHTML = teams.map(t => `<option value="${t}">${t}</option>`).join("");
+});
 
-      socket.emit("join", name);
-      joinScreen.style.display = "none";
-      buzzScreen.style.display = "block";
-    };
+document.getElementById("joinBtn").onclick = () => {
+  const name = document.getElementById("nameInput").value.trim();
+  const team = teamSelect.value;
+  if (!name) return;
 
-    buzzBtn.onclick = () => socket.emit("buzz");
+  socket.emit("join", { name, team });
 
-    socket.on("armed", () => {
-      statusText.textContent = "BUZZ NOW!";
-      buzzBtn.disabled = false;
-    });
+  joinScreen.style.display = "none";
+  buzzScreen.style.display = "block";
+};
 
-    socket.on("winner", (player) => {
-      statusText.textContent = player.name + " buzzed first!";
-      buzzBtn.disabled = true;
-    });
+buzzBtn.onclick = () => socket.emit("buzz");
 
-    socket.on("reset", () => {
-      statusText.textContent = "Waiting for host...";
-      buzzBtn.disabled = true;
-    });
+socket.on("armed", () => {
+  statusText.textContent = "BUZZ NOW!";
+  buzzBtn.disabled = false;
+});
 
-  </script>
+socket.on("winner", (player) => {
+  statusText.textContent = `${player.team} - ${player.name} buzzed first!`;
+  buzzBtn.disabled = true;
+});
+
+socket.on("reset", () => {
+  statusText.textContent = "Waiting for host...";
+  buzzBtn.disabled = true;
+});
+</script>
+
 </body>
 </html>
