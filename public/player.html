@@ -1,56 +1,158 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Player Join</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8" />
+  <title>Game Buzzer</title>
+
   <script src="/socket.io/socket.io.js"></script>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #111;
+      color: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .container {
+      max-width: 500px;
+      width: 100%;
+      padding: 2rem;
+      background: #1b1b1b;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+    h1 {
+      text-align: center;
+      margin-top: 0;
+      margin-bottom: 1rem;
+    }
+    .status {
+      text-align: center;
+      font-size: 1.2rem;
+      padding: 0.75rem 1rem;
+      border-radius: 999px;
+      background: #222;
+      margin-bottom: 1.5rem;
+    }
+    .status.armed {
+      background: #004d17;
+      color: #c7ffd1;
+    }
+    .status.winner {
+      background: #4d0000;
+      color: #ffd5d5;
+    }
+
+    input, select {
+      width: 100%;
+      font-size: 1rem;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+      background: #222;
+      color: #fff;
+    }
+
+    button {
+      cursor: pointer;
+      border-radius: 999px;
+      border: none;
+      width: 100%;
+      padding: 1rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      transition: 0.3s ease;
+      margin-bottom: 1rem;
+    }
+
+    #joinBtn {
+      background: #00af3f;
+      color: #fff;
+    }
+
+    #buzzBtn {
+      background: #555;     /* locked / waiting */
+      color: #ccc;
+      height: 180px;
+      font-size: 2rem;
+    }
+
+    #buzzBtn.armed {
+      background: #d40000; /* READY */
+      color: #fff;
+    }
+
+    #buzzBtn.you {
+      background: #009900 !important; /* YOU buzzed */
+      color: #fff;
+    }
+
+    #buzzBtn.locked {
+      background: #333 !important;   /* someone else buzzed */
+      color: #777;
+    }
+
+  </style>
 </head>
+
 <body>
 
-  <!-- JOIN SCREEN -->
+<div class="container">
+
+  <!-- BEFORE JOINING -->
   <div id="joinScreen">
-    <h2>Enter your name</h2>
-    <input id="nameInput" style="padding:10px;font-size:20px;" />
+    <h1>Join Game</h1>
 
-    <h2>Select your team</h2>
-    <select id="teamSelect" style="font-size:20px;padding:10px;width:80%"></select>
+    <input id="nameInput" placeholder="Your Name" />
 
-    <br><br>
-    <button id="joinBtn" style="font-size:20px;padding:10px 20px;">Join Game</button>
+    <select id="teamSelect"></select>
+
+    <button id="joinBtn">Join Game</button>
   </div>
 
-  <!-- BUZZER SCREEN -->
+  <!-- AFTER JOINING -->
   <div id="buzzScreen" style="display:none;">
-    <h2 id="status">Waiting for host...</h2>
-    <button id="buzzBtn" class="buzz-button" disabled>BUZZ</button>
+    <h1>Buzzer</h1>
+
+    <div id="status" class="status">Waiting for host...</div>
+
+    <button id="buzzBtn" disabled>BUZZ</button>
   </div>
 
+</div>
 
 <script>
 const socket = io();
 
-// DOM references
+let localPlayer = null;
+
+// UI references
 const joinScreen = document.getElementById("joinScreen");
 const buzzScreen = document.getElementById("buzzScreen");
-const statusText = document.getElementById("status");
+const statusBox = document.getElementById("status");
 const buzzBtn = document.getElementById("buzzBtn");
 const teamSelect = document.getElementById("teamSelect");
 
-let localPlayer = null;
-
-// Receive the current team list
+// Receive team list from host
 socket.on("teamList", (teams) => {
   teamSelect.innerHTML = teams
     .map(t => `<option value="${t}">${t}</option>`)
     .join("");
 });
 
-// Join button
+// Join game
 document.getElementById("joinBtn").onclick = () => {
   const name = document.getElementById("nameInput").value.trim();
   const team = teamSelect.value;
 
-  if (!name) return;
+  if (!name) return alert("Enter your name.");
 
   localPlayer = { name, team };
 
@@ -60,44 +162,49 @@ document.getElementById("joinBtn").onclick = () => {
   buzzScreen.style.display = "block";
 };
 
-// BUZZ BUTTON PRESSED
+// Press BUZZ
 buzzBtn.onclick = () => {
-  buzzBtn.style.background = "#009900";   // Green = YOU buzzed
-  buzzBtn.style.color = "#fff";
+  buzzBtn.classList.remove("armed");
+  buzzBtn.classList.add("you");
   socket.emit("buzz");
 };
 
-// GAME STATES FROM SERVER
+// HOST ARMED BUZZERS
 socket.on("armed", () => {
-  statusText.textContent = "BUZZ NOW!";
+  statusBox.textContent = "BUZZ NOW!";
+  statusBox.className = "status armed";
+
   buzzBtn.disabled = false;
-  buzzBtn.style.background = "#d40000"; // Red = ready
-  buzzBtn.style.color = "#fff";
+  buzzBtn.classList.add("armed");
+  buzzBtn.classList.remove("locked", "you");
 });
 
+// SOMEONE BUZZED FIRST
 socket.on("winner", (player) => {
-  const isMe = localPlayer && player.name === localPlayer.name && player.team === localPlayer.team;
+  const isMe = localPlayer &&
+               localPlayer.name === player.name &&
+               localPlayer.team === player.team;
 
-  statusText.textContent = `${player.team} – ${player.name} buzzed first!`;
+  statusBox.textContent = `${player.team} – ${player.name} buzzed first!`;
+  statusBox.className = "status winner";
 
   if (isMe) {
-    // ⭐ YOU pressed first = button stays green
-    buzzBtn.style.background = "#009900";
-    buzzBtn.style.color = "white";
+    buzzBtn.classList.add("you");
   } else {
-    // ⭐ Someone else won = button goes dark gray (locked)
-    buzzBtn.style.background = "#444";
-    buzzBtn.style.color = "#ccc";
+    buzzBtn.classList.add("locked");
   }
 
   buzzBtn.disabled = true;
+  buzzBtn.classList.remove("armed");
 });
 
+// HOST RESET
 socket.on("reset", () => {
-  statusText.textContent = "Waiting for host...";
+  statusBox.textContent = "Waiting for host...";
+  statusBox.className = "status";
+
   buzzBtn.disabled = true;
-  buzzBtn.style.background = "#555"; // Gray = waiting / locked
-  buzzBtn.style.color = "#ccc";
+  buzzBtn.className = "";
 });
 </script>
 
