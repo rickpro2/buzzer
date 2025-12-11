@@ -17,6 +17,7 @@
       min-height: 100vh;
       margin: 0;
     }
+
     .container {
       max-width: 500px;
       width: 100%;
@@ -25,11 +26,14 @@
       border-radius: 16px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.6);
     }
+
     h1 {
       text-align: center;
       margin-top: 0;
-      margin-bottom: 1rem;
+      margin-bottom: 1.2rem;
     }
+
+    /* STATUS BAR */
     .status {
       text-align: center;
       font-size: 1.2rem;
@@ -37,6 +41,7 @@
       border-radius: 999px;
       background: #222;
       margin-bottom: 1.5rem;
+      transition: 0.3s ease;
     }
     .status.armed {
       background: #004d17;
@@ -47,6 +52,7 @@
       color: #ffd5d5;
     }
 
+    /* INPUTS */
     input, select {
       width: 100%;
       font-size: 1rem;
@@ -59,7 +65,8 @@
       color: #fff;
     }
 
-    button {
+    /* JOIN BUTTON */
+    #joinBtn {
       cursor: pointer;
       border-radius: 999px;
       border: none;
@@ -67,38 +74,56 @@
       padding: 1rem;
       font-size: 1.1rem;
       font-weight: 600;
-      letter-spacing: 0.03em;
+      background: #00af3f;
+      color: #fff;
       transition: 0.3s ease;
       margin-bottom: 1rem;
     }
 
-    #joinBtn {
-      background: #00af3f;
-      color: #fff;
-    }
-
+    /* ------------------------------ */
+    /*    CIRCULAR BUZZER BUTTON      */
+    /* ------------------------------ */
     #buzzBtn {
-      background: #555;     /* locked / waiting */
+      background: #555;     /* Waiting */
       color: #ccc;
-      height: 180px;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
       font-size: 2rem;
+      font-weight: bold;
+      border: none;
+      margin: 0 auto;
+      display: block;
+      transition: 0.25s ease;
+      box-shadow: 
+        0 0 20px rgba(0,0,0,0.5),
+        inset 0 0 20px rgba(0,0,0,0.6);
     }
 
+    /* READY TO BUZZ */
     #buzzBtn.armed {
-      background: #d40000; /* READY */
+      background: #d40000;
       color: #fff;
+      box-shadow:
+        0 0 30px rgba(255,0,0,0.5),
+        inset 0 0 20px rgba(255,255,255,0.2);
     }
 
+    /* YOU BUZZED FIRST */
     #buzzBtn.you {
-      background: #009900 !important; /* YOU buzzed */
+      background: #009900 !important;
       color: #fff;
+      box-shadow:
+        0 0 40px rgba(0,255,0,0.5),
+        inset 0 0 20px rgba(255,255,255,0.3);
     }
 
+    /* SOMEONE ELSE BUZZED FIRST */
     #buzzBtn.locked {
-      background: #333 !important;   /* someone else buzzed */
+      background: #333 !important;
       color: #777;
+      box-shadow: none;
     }
-
   </style>
 </head>
 
@@ -106,7 +131,7 @@
 
 <div class="container">
 
-  <!-- BEFORE JOINING -->
+  <!-- JOIN SCREEN -->
   <div id="joinScreen">
     <h1>Join Game</h1>
 
@@ -117,7 +142,7 @@
     <button id="joinBtn">Join Game</button>
   </div>
 
-  <!-- AFTER JOINING -->
+  <!-- BUZZER SCREEN -->
   <div id="buzzScreen" style="display:none;">
     <h1>Buzzer</h1>
 
@@ -181,9 +206,10 @@ socket.on("armed", () => {
 
 // SOMEONE BUZZED FIRST
 socket.on("winner", (player) => {
-  const isMe = localPlayer &&
-               localPlayer.name === player.name &&
-               localPlayer.team === player.team;
+  const isMe =
+    localPlayer &&
+    localPlayer.name === player.name &&
+    localPlayer.team === player.team;
 
   statusBox.textContent = `${player.team} – ${player.name} buzzed first!`;
   statusBox.className = "status winner";
