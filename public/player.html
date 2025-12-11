@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Join Game</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+  <div id="joinScreen">
+    <h2>Enter your name</h2>
+    <input id="nameInput" />
+    <button id="joinBtn">Join</button>
+  </div>
+
+  <div id="buzzScreen" style="display:none;">
+    <h2 id="status">Waiting for host...</h2>
+    <button id="buzzBtn" class="buzz-button">BUZZ</button>
+  </div>
+
+  <script>
+    const socket = io();
+
+    const joinScreen = document.getElementById("joinScreen");
+    const buzzScreen = document.getElementById("buzzScreen");
+    const statusText = document.getElementById("status");
+    const buzzBtn = document.getElementById("buzzBtn");
+
+    document.getElementById("joinBtn").onclick = () => {
+      const name = document.getElementById("nameInput").value.trim();
+      if (!name) return;
+
+      socket.emit("join", name);
+      joinScreen.style.display = "none";
+      buzzScreen.style.display = "block";
+    };
+
+    buzzBtn.onclick = () => socket.emit("buzz");
+
+    socket.on("armed", () => {
+      statusText.textContent = "BUZZ NOW!";
+      buzzBtn.disabled = false;
+    });
+
+    socket.on("winner", (player) => {
+      statusText.textContent = player.name + " buzzed first!";
+      buzzBtn.disabled = true;
+    });
+
+    socket.on("reset", () => {
+      statusText.textContent = "Waiting for host...";
+      buzzBtn.disabled = true;
+    });
+
+  </script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Host Control Panel</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  
+  <h1>Host Panel</h1>
+
+  <div id="players"></div>
+
+  <button id="armBtn">ARM BUZZER</button>
+  <button id="resetBtn">RESET</button>
+
+  <h2 id="winner"></h2>
+
+  <script>
+    const socket = io();
+
+    const playersDiv = document.getElementById("players");
+    const winnerDiv = document.getElementById("winner");
+
+    document.getElementById("armBtn").onclick = () => socket.emit("arm");
+    document.getElementById("resetBtn").onclick = () => socket.emit("reset");
+
+    socket.on("playerList", (players) => {
+      playersDiv.innerHTML = "<h3>Players Joined:</h3>" +
+        players.map(p => `<div class="player">${p.name}</div>`).join("");
+    });
+
+    socket.on("winner", (player) => {
+      winnerDiv.textContent = player.name + " BUZZED FIRST!";
+    });
+
+    socket.on("armed", () => {
+      winnerDiv.textContent = "Buzzers armed!";
+    });
+
+    socket.on("reset", () => {
+      winnerDiv.textContent = "";
+    });
+
+  </script>
+
+</body>
+</html>

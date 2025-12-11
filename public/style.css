@@ -1,0 +1,33 @@
+body {
+  font-family: system-ui, sans-serif;
+  text-align: center;
+  background: #111;
+  color: #fff;
+  padding: 30px;
+}
+
+.player {
+  background: #222;
+  padding: 10px;
+  margin: 5px;
+  border-radius: 6px;
+}
+
+.buzz-button {
+  width: 80%;
+  height: 200px;
+  font-size: 40px;
+  background: #d40000;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+}
+
+input {
+  padding: 10px;
+  font-size: 20px;
+}
+button {
+  padding: 10px 20px;
+  font-size: 20px;
+}
