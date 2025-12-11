@@ -36,6 +36,8 @@ const statusText = document.getElementById("status");
 const buzzBtn = document.getElementById("buzzBtn");
 const teamSelect = document.getElementById("teamSelect");
 
+let localPlayer = null;
+
 // Receive the current team list
 socket.on("teamList", (teams) => {
   teamSelect.innerHTML = teams
@@ -50,29 +52,52 @@ document.getElementById("joinBtn").onclick = () => {
 
   if (!name) return;
 
+  localPlayer = { name, team };
+
   socket.emit("join", { name, team });
 
   joinScreen.style.display = "none";
   buzzScreen.style.display = "block";
 };
 
-// Buzz button
-buzzBtn.onclick = () => socket.emit("buzz");
+// BUZZ BUTTON PRESSED
+buzzBtn.onclick = () => {
+  buzzBtn.style.background = "#009900";   // Green = YOU buzzed
+  buzzBtn.style.color = "#fff";
+  socket.emit("buzz");
+};
 
-// Game state updates
+// GAME STATES FROM SERVER
 socket.on("armed", () => {
   statusText.textContent = "BUZZ NOW!";
   buzzBtn.disabled = false;
+  buzzBtn.style.background = "#d40000"; // Red = ready
+  buzzBtn.style.color = "#fff";
 });
 
 socket.on("winner", (player) => {
+  const isMe = localPlayer && player.name === localPlayer.name && player.team === localPlayer.team;
+
   statusText.textContent = `${player.team} – ${player.name} buzzed first!`;
+
+  if (isMe) {
+    // ⭐ YOU pressed first = button stays green
+    buzzBtn.style.background = "#009900";
+    buzzBtn.style.color = "white";
+  } else {
+    // ⭐ Someone else won = button goes dark gray (locked)
+    buzzBtn.style.background = "#444";
+    buzzBtn.style.color = "#ccc";
+  }
+
   buzzBtn.disabled = true;
 });
 
 socket.on("reset", () => {
   statusText.textContent = "Waiting for host...";
   buzzBtn.disabled = true;
+  buzzBtn.style.background = "#555"; // Gray = waiting / locked
+  buzzBtn.style.color = "#ccc";
 });
 </script>
 
