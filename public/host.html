@@ -1,42 +1,180 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
   <title>Host Control Panel</title>
-  <link rel="stylesheet" href="style.css" />
+
   <script src="/socket.io/socket.io.js"></script>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #111;
+      color: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      width: 95%;
+      max-width: 900px;
+      padding: 2rem;
+      background: #1b1b1b;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 0;
+      margin-bottom: 1.5rem;
+    }
+
+    /* STATUS BAR */
+    .status {
+      text-align: center;
+      font-size: 1.3rem;
+      padding: 0.75rem 1rem;
+      border-radius: 999px;
+      background: #222;
+      margin-bottom: 1.5rem;
+      transition: 0.3s ease;
+    }
+    .status.armed {
+      background: #004d17;
+      color: #c7ffd1;
+    }
+    .status.winner {
+      background: #4d0000;
+      color: #ffd5d5;
+    }
+
+    /* TEAM SETUP */
+    #teamInput {
+      width: 100%;
+      background: #222;
+      padding: 0.75rem;
+      border-radius: 10px;
+      border: none;
+      color: #fff;
+      margin-bottom: 1rem;
+    }
+
+    #setTeamsBtn {
+      width: 100%;
+      padding: 0.9rem;
+      font-size: 1rem;
+      border-radius: 10px;
+      border: none;
+      background: #0077ff;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 1.5rem;
+      transition: 0.3s;
+    }
+    #setTeamsBtn:hover {
+      background: #3395ff;
+    }
+
+    /* PLAYER LIST */
+    .teamBlock {
+      background: #222;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 12px;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.4);
+    }
+    .teamBlock h3 {
+      margin-top: 0;
+      color: #ffd86b;
+    }
+
+    .player {
+      padding: 0.6rem 1rem;
+      background: #333;
+      margin: 0.35rem 0;
+      border-radius: 8px;
+    }
+
+    /* CONTROL BUTTONS */
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    button {
+      cursor: pointer;
+      border-radius: 999px;
+      border: none;
+      padding: 0.9rem 2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: 0.3s ease;
+    }
+
+    #armBtn {
+      background: #00af3f;
+      color: #fff;
+    }
+    #armBtn:hover {
+      background: #00c84a;
+    }
+
+    #resetBtn {
+      background: #444;
+      color: #eee;
+    }
+    #resetBtn:hover {
+      background: #666;
+    }
+
+  </style>
 </head>
+
 <body>
 
-  <h1>Host Panel</h1>
+<div class="container">
+
+  <h1>Host Control Panel</h1>
+
+  <!-- STATUS BAR -->
+  <div id="status" class="status">
+    Waiting to arm buzzers…
+  </div>
 
   <!-- TEAM SETUP -->
   <h2>Team Setup</h2>
-  <input id="teamInput" placeholder="Red, Blue, Green" style="width:80%;padding:10px;">
+  <input id="teamInput" placeholder="Red, Blue, Green, Yellow" />
   <button id="setTeamsBtn">Update Teams</button>
-
-  <hr>
 
   <!-- PLAYER LIST -->
   <div id="players"></div>
 
-  <hr>
+  <!-- CONTROLS -->
+  <div class="controls">
+    <button id="armBtn">Arm Buzzers</button>
+    <button id="resetBtn">Reset</button>
+  </div>
 
-  <!-- CONTROL BUTTONS -->
-  <button id="armBtn">ARM BUZZER</button>
-  <button id="resetBtn">RESET</button>
-
-  <h2 id="winner"></h2>
+</div>
 
 <script>
 const socket = io();
 
+const statusBox = document.getElementById("status");
 const playersDiv = document.getElementById("players");
-const winnerDiv = document.getElementById("winner");
 const teamInput = document.getElementById("teamInput");
 
+// Click actions
 document.getElementById("armBtn").onclick = () => socket.emit("arm");
 document.getElementById("resetBtn").onclick = () => socket.emit("reset");
-
 document.getElementById("setTeamsBtn").onclick = () => {
   const teams = teamInput.value
     .split(",")
@@ -46,7 +184,7 @@ document.getElementById("setTeamsBtn").onclick = () => {
   if (teams.length > 0) socket.emit("setTeams", teams);
 };
 
-// Receive teams from server
+// Receive updated team list
 socket.on("teamList", (teams) => {
   teamInput.value = teams.join(", ");
 });
@@ -55,6 +193,7 @@ socket.on("teamList", (teams) => {
 socket.on("playerList", (players) => {
   let html = "<h2>Players by Team</h2>";
 
+  // Group players by team
   const grouped = {};
   players.forEach(p => {
     if (!grouped[p.team]) grouped[p.team] = [];
@@ -62,26 +201,30 @@ socket.on("playerList", (players) => {
   });
 
   for (let team in grouped) {
-    html += `<div class="teamBlock"><h3>${team}</h3>`;
-    html += grouped[team].map(name => `<div class="player">${name}</div>`).join("");
+    html += `<div class='teamBlock'><h3>${team}</h3>`;
+    html += grouped[team]
+      .map(name => `<div class='player'>${name}</div>`)
+      .join("");
     html += "</div>";
   }
 
   playersDiv.innerHTML = html;
 });
 
-// Winner announcement
-socket.on("winner", (player) => {
-  winnerDiv.textContent = `${player.team} – ${player.name} buzzed first!`;
+// GAME STATE EVENTS
+socket.on("armed", () => {
+  statusBox.textContent = "Buzzers Armed — Waiting for buzz!";
+  statusBox.className = "status armed";
 });
 
-// State updates
-socket.on("armed", () => {
-  winnerDiv.textContent = "Buzzers Armed!";
+socket.on("winner", (player) => {
+  statusBox.textContent = `${player.team} – ${player.name} buzzed first!`;
+  statusBox.className = "status winner";
 });
 
 socket.on("reset", () => {
-  winnerDiv.textContent = "";
+  statusBox.textContent = "Waiting to arm buzzers…";
+  statusBox.className = "status";
 });
 </script>
 
