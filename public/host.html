@@ -6,15 +6,22 @@
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-  
+
   <h1>Host Panel</h1>
 
-<h3>Team Setup</h3>
-<input id="teamInput" placeholder="Red, Blue, Green" style="width:80%;padding:10px;">
-<button onclick="updateTeams()">Update Teams</button>
+  <!-- TEAM SETUP -->
+  <h2>Team Setup</h2>
+  <input id="teamInput" placeholder="Red, Blue, Green" style="width:80%;padding:10px;">
+  <button id="setTeamsBtn">Update Teams</button>
 
+  <hr>
+
+  <!-- PLAYER LIST -->
   <div id="players"></div>
 
+  <hr>
+
+  <!-- CONTROL BUTTONS -->
   <button id="armBtn">ARM BUZZER</button>
   <button id="resetBtn">RESET</button>
 
@@ -30,47 +37,53 @@ const teamInput = document.getElementById("teamInput");
 document.getElementById("armBtn").onclick = () => socket.emit("arm");
 document.getElementById("resetBtn").onclick = () => socket.emit("reset");
 
-function updateTeams() {
-  const teams = teamInput.value.split(",").map(t => t.trim()).filter(t => t);
-  socket.emit("setTeams", teams);
-}
+document.getElementById("setTeamsBtn").onclick = () => {
+  const teams = teamInput.value
+    .split(",")
+    .map(t => t.trim())
+    .filter(t => t.length > 0);
 
+  if (teams.length > 0) socket.emit("setTeams", teams);
+};
+
+// Receive teams from server
 socket.on("teamList", (teams) => {
   teamInput.value = teams.join(", ");
 });
 
+// Receive player list
 socket.on("playerList", (players) => {
-  let html = "<h3>Players By Team:</h3>";
+  let html = "<h2>Players by Team</h2>";
 
-  // Group players by team
   const grouped = {};
   players.forEach(p => {
     if (!grouped[p.team]) grouped[p.team] = [];
     grouped[p.team].push(p.name);
   });
 
-  for (let t in grouped) {
-    html += `<div class="teamBlock"><h4>${t}</h4>`;
-    html += grouped[t].map(name => `<div class="player">${name}</div>`).join("");
+  for (let team in grouped) {
+    html += `<div class="teamBlock"><h3>${team}</h3>`;
+    html += grouped[team].map(name => `<div class="player">${name}</div>`).join("");
     html += "</div>";
   }
 
   playersDiv.innerHTML = html;
 });
 
+// Winner announcement
 socket.on("winner", (player) => {
-  winnerDiv.textContent = `${player.team} - ${player.name} buzzed first!`;
+  winnerDiv.textContent = `${player.team} – ${player.name} buzzed first!`;
 });
 
+// State updates
 socket.on("armed", () => {
-  winnerDiv.textContent = "Buzzers armed!";
+  winnerDiv.textContent = "Buzzers Armed!";
 });
 
 socket.on("reset", () => {
   winnerDiv.textContent = "";
 });
 </script>
-
 
 </body>
 </html>

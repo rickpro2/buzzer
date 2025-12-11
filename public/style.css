@@ -6,6 +6,13 @@ body {
   padding: 30px;
 }
 
+input, select {
+  padding: 12px;
+  font-size: 18px;
+  border-radius: 6px;
+  width: 80%;
+}
+
 .player {
   background: #222;
   padding: 10px;
@@ -13,21 +20,28 @@ body {
   border-radius: 6px;
 }
 
+.teamBlock {
+  background: #333;
+  margin: 10px;
+  padding: 10px;
+  border-radius: 8px;
+}
+
 .buzz-button {
   width: 80%;
   height: 200px;
   font-size: 40px;
   background: #d40000;
-  color: #fff;
+  color: white;
   border: none;
   border-radius: 20px;
+  margin-top: 20px;
 }
 
-input {
-  padding: 10px;
-  font-size: 20px;
-}
 button {
-  padding: 10px 20px;
-  font-size: 20px;
+  cursor: pointer;
+  border-radius: 8px;
+  border: none;
+  padding: 12px 20px;
+  font-size: 18px;
 }
