@@ -1,141 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>Host Panel</title>
 <script src="/socket.io/socket.io.js"></script>
 
 <style>
-body {
-  font-family:system-ui,sans-serif;
-  background:#111;
-  color:#f5f5f5;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  min-height:100vh;
-  margin:0;
-}
-.container {
-  max-width:900px;
-  width:95%;
-  padding:2rem;
-  background:#1b1b1b;
-  border-radius:16px;
-}
-.status {
-  text-align:center;
-  padding:.8rem;
-  border-radius:999px;
-  background:#222;
-  margin-bottom:1rem;
-}
-.teamBlock {
-  background:#222;
-  padding:1rem;
-  margin-top:1rem;
-  border-radius:12px;
-}
-.player {
-  background:#333;
-  padding:.4rem;
-  margin:.3rem 0;
-  border-radius:6px;
-}
-button {
-  border:none;
-  border-radius:999px;
-  padding:.7rem 1.5rem;
-  font-weight:600;
-}
+body{font-family:system-ui;background:#111;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}
+.container{max-width:900px;width:95%;background:#1b1b1b;padding:2rem;border-radius:16px}
+h1{text-align:center}
+.section{margin-top:1.5rem}
+.card{background:#222;padding:1rem;border-radius:12px;margin:.5rem 0}
+.row{display:flex;justify-content:space-between;align-items:center}
+button{border:none;border-radius:999px;padding:.5rem 1.2rem;font-weight:600;cursor:pointer}
+.add{background:#00af3f;color:#fff}
+.sub{background:#d40000;color:#fff}
 </style>
 </head>
 
 <body>
 <div class="container">
-
 <h1>Host Control Panel</h1>
 
-<button id="createRoomBtn">Create New Game</button>
+<button onclick="socket.emit('createRoom')">Create Room</button>
+<h2 id="pin"></h2>
 
-<h2 id="roomPin"></h2>
+<div class="section">
+  <button onclick="socket.emit('arm',pin)">Arm</button>
+  <button onclick="socket.emit('reset',pin)">Reset</button>
+</div>
 
-<div class="status" id="status">Waiting…</div>
-
-<label>
-  Team Mode
-  <input type="checkbox" id="teamToggle" checked>
-</label>
-
-<input id="teamInput" placeholder="Red, Blue, Green">
-<button id="setTeamsBtn">Update Teams</button>
-
-<div id="players"></div>
-
-<button onclick="socket.emit('arm', currentPin)">Arm</button>
-<button onclick="socket.emit('reset', currentPin)">Reset</button>
-
+<div class="section">
+  <h2>Scoreboard</h2>
+  <div id="scores"></div>
+</div>
 </div>
 
 <script>
 const socket = io();
-let currentPin = null;
+let pin=null;
 
-document.getElementById("createRoomBtn").onclick = () => {
-  socket.emit("createRoom");
-};
-
-socket.on("roomCreated", ({ pin, config }) => {
-  currentPin = pin;
-  document.getElementById("roomPin").textContent =
-    `Room PIN: ${pin}`;
-  socket.emit("joinRoom", { pin });
+socket.on("roomCreated", d=>{
+  pin=d.pin;
+  document.getElementById("pin").textContent="Room PIN: "+pin;
+  socket.emit("joinRoom",{pin});
 });
 
-document.getElementById("teamToggle").onchange = e => {
-  socket.emit("toggleTeamMode", {
-    pin: currentPin,
-    enabled: e.target.checked
+socket.on("scoreUpdate", scores=>{
+  const el=document.getElementById("scores");
+  el.innerHTML="";
+  Object.keys(scores).forEach(k=>{
+    el.innerHTML+=`
+      <div class="card row">
+        <strong>${k}</strong>
+        <div>
+          <button class="sub" onclick="socket.emit('updateScore',{pin,key:'${k}',delta:-1})">−</button>
+          <span style="margin:0 10px">${scores[k]}</span>
+          <button class="add" onclick="socket.emit('updateScore',{pin,key:'${k}',delta:1})">+</button>
+        </div>
+      </div>`;
   });
-};
-
-document.getElementById("setTeamsBtn").onclick = () => {
-  socket.emit("setTeams", {
-    pin: currentPin,
-    teams: document.getElementById("teamInput")
-      .value.split(",").map(t=>t.trim()).filter(Boolean)
-  });
-};
-
-socket.on("playerList", players => {
-  let html = "<h2>Players</h2>";
-  const grouped = {};
-  players.forEach(p => {
-    grouped[p.team] = grouped[p.team] || [];
-    grouped[p.team].push(p.name);
-  });
-  for (let t in grouped) {
-    html += `<div class="teamBlock"><h3>${t}</h3>`;
-    html += grouped[t].map(n=>`<div class="player">${n}</div>`).join("");
-    html += "</div>";
-  }
-  document.getElementById("players").innerHTML = html;
 });
 
-socket.on("armed", () => {
-  document.getElementById("status").textContent = "Buzzers Armed!";
-});
-socket.on("winner", p => {
-  document.getElementById("status").textContent =
-    `${p.team} – ${p.name} buzzed first!`;
-});
-socket.on("reset", () => {
-  document.getElementById("status").textContent = "Waiting…";
-});
-
-socket.on("roomExpired", () => {
-  alert("This room expired due to inactivity.");
-  window.location.reload();
+socket.on("roomExpired",()=>{
+  alert("Room expired due to inactivity");
+  location.reload();
 });
 </script>
 </body>

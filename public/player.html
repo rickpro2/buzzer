@@ -1,58 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Join Game</title>
+<title>Game Buzzer</title>
 <script src="/socket.io/socket.io.js"></script>
 
 <style>
-body {
-  font-family:system-ui,sans-serif;
-  background:#111;
-  color:#fff;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  min-height:100vh;
-  margin:0;
-}
-.container {
-  width:400px;
-  background:#1b1b1b;
-  padding:2rem;
-  border-radius:16px;
-}
-button {
-  width:100%;
-  padding:1rem;
-  border-radius:999px;
-  border:none;
-  margin-top:1rem;
-}
-#buzzBtn {
-  width:240px;
-  height:240px;
-  border-radius:50%;
-  background:#555;
-  font-size:2rem;
-}
-#buzzBtn.armed { background:#d40000; }
-#buzzBtn.you { background:#009900; }
-#buzzBtn.locked { background:#333; }
+body{font-family:system-ui;background:#111;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}
+.container{width:420px;background:#1b1b1b;padding:2rem;border-radius:16px;text-align:center}
+input,select{width:100%;padding:.75rem;margin-bottom:1rem;border-radius:8px;border:none;background:#222;color:#fff}
+#buzzBtn{width:260px;height:260px;border-radius:50%;font-size:2rem;border:none;background:#555;color:#ccc}
+#buzzBtn.armed{background:#d40000;color:#fff}
+#buzzBtn.you{background:#009900;color:#fff}
+#buzzBtn.locked{background:#333;color:#777}
 </style>
 </head>
 
 <body>
 <div class="container">
 
-<div id="joinScreen">
+<div id="join">
   <input id="pinInput" placeholder="Room PIN">
   <input id="nameInput" placeholder="Your Name">
   <select id="teamSelect"></select>
-  <button id="joinBtn">Join Game</button>
+  <button onclick="join()">Join</button>
 </div>
 
-<div id="buzzScreen" style="display:none;">
+<div id="buzz" style="display:none;">
   <div id="status">Waiting…</div>
   <button id="buzzBtn" disabled>BUZZ</button>
 </div>
@@ -61,47 +35,44 @@ button {
 
 <script>
 const socket = io();
-let pin = null;
-let me = null;
+let pin=null;
 
-socket.on("config", c => {
-  document.getElementById("teamSelect").innerHTML =
+socket.on("config", c=>{
+  document.getElementById("teamSelect").innerHTML=
     c.teams.map(t=>`<option>${t}</option>`).join("");
 });
 
-document.getElementById("joinBtn").onclick = () => {
-  pin = document.getElementById("pinInput").value.trim();
-  const name = document.getElementById("nameInput").value.trim();
-  const team = document.getElementById("teamSelect").value;
+function join(){
+  pin=document.getElementById("pinInput").value.trim();
+  socket.emit("joinRoom",{
+    pin,
+    name:document.getElementById("nameInput").value.trim(),
+    team:document.getElementById("teamSelect").value
+  });
+}
 
-  socket.emit("joinRoom", { pin, name, team });
-};
-
-socket.on("joinError", msg => alert(msg));
-
-socket.on("playerList", () => {
-  document.getElementById("joinScreen").style.display="none";
-  document.getElementById("buzzScreen").style.display="block";
+socket.on("joinError",msg=>alert(msg));
+socket.on("playerList",()=>{
+  document.getElementById("join").style.display="none";
+  document.getElementById("buzz").style.display="block";
 });
 
-const buzzBtn = document.getElementById("buzzBtn");
+const btn=document.getElementById("buzzBtn");
+btn.onclick=()=>socket.emit("buzz",pin);
 
-buzzBtn.onclick = () => socket.emit("buzz", pin);
-
-socket.on("armed", () => {
-  buzzBtn.disabled=false;
-  buzzBtn.className="armed";
+socket.on("armed",()=>{
+  btn.disabled=false;
+  btn.className="armed";
 });
 
-socket.on("winner", p => {
-  buzzBtn.disabled=true;
-  buzzBtn.className =
-    me && me.name===p.name ? "you":"locked";
+socket.on("winner",p=>{
+  btn.disabled=true;
+  btn.className="locked";
 });
 
-socket.on("roomExpired", () => {
-  alert("This game has ended due to inactivity.");
-  window.location.reload();
+socket.on("roomExpired",()=>{
+  alert("Game ended due to inactivity");
+  location.reload();
 });
 </script>
 </body>
