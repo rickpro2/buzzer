@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Audience Display</title>
+<script src="/socket.io/socket.io.js"></script>
+
+<style>
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #0e0e0e;
+  color: #ffffff;
+  margin: 0;
+  padding: 0;
+}
+
+.wrapper {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.header {
+  padding: 1.5rem;
+  text-align: center;
+  background: #151515;
+  border-bottom: 2px solid #222;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 3rem;
+  letter-spacing: 0.05em;
+}
+
+.pin {
+  margin-top: 0.5rem;
+  font-size: 1.6rem;
+  color: #ffd86b;
+  font-weight: 800;
+}
+
+.status {
+  text-align: center;
+  font-size: 2rem;
+  padding: 1.2rem;
+  background: #1b1b1b;
+}
+
+.status.armed {
+  background: #004d17;
+  color: #c7ffd1;
+}
+
+.status.winner {
+  background: #4d0000;
+  color: #ffd5d5;
+}
+
+.main {
+  padding: 2rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.scoreCard {
+  background: #1b1b1b;
+  border-radius: 18px;
+  padding: 1.5rem;
+  border: 2px solid #2a2a2a;
+  text-align: center;
+}
+
+.scoreName {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+
+.scoreValue {
+  font-size: 3.2rem;
+  font-weight: 900;
+  color: #00ff88;
+}
+
+.footer {
+  padding: 1rem;
+  text-align: center;
+  background: #151515;
+  font-size: 1.2rem;
+  color: #aaa;
+}
+</style>
+</head>
+
+<body>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <div class="header">
+    <h1>QUIZ SHOW</h1>
+    <div id="pin" class="pin">Enter PIN</div>
+  </div>
+
+  <!-- STATUS -->
+  <div id="status" class="status">
+    Waiting for host…
+  </div>
+
+  <!-- SCOREBOARD -->
+  <div class="main" id="scores">
+    <!-- score cards injected here -->
+  </div>
+
+  <!-- FOOTER -->
+  <div id="footer" class="footer">
+    Waiting for game…
+  </div>
+
+</div>
+
+<script>
+const socket = io();
+let pin = null;
+let lastWinner = null;
+
+// Prompt for PIN
+pin = prompt("Enter Room PIN for Audience Display:");
+if (pin) {
+  socket.emit("checkRoom", pin);
+}
+
+// Load room info
+socket.on("roomInfo", ({ teamMode, teams }) => {
+  document.getElementById("pin").textContent = `ROOM PIN: ${pin}`;
+});
+
+// Scoreboard updates
+socket.on("scoreUpdate", (scores) => {
+  const container = document.getElementById("scores");
+  container.innerHTML = "";
+
+  const keys = Object.keys(scores || {});
+  if (!keys.length) {
+    container.innerHTML = `<div style="color:#777;font-size:1.5rem;">Waiting for scores…</div>`;
+    return;
+  }
+
+  keys.forEach(key => {
+    const card = document.createElement("div");
+    card.className = "scoreCard";
+    card.innerHTML = `
+      <div class="scoreName">${key}</div>
+      <div class="scoreValue">${scores[key]}</div>
+    `;
+    container.appendChild(card);
+  });
+});
+
+// Game states
+socket.on("armed", () => {
+  const status = document.getElementById("status");
+  status.textContent = "🔴 BUZZERS ARMED!";
+  status.className = "status armed";
+});
+
+socket.on("winner", (p) => {
+  lastWinner = p;
+  const status = document.getElementById("status");
+  status.textContent = `🏆 ${p.team} – ${p.name} buzzed first!`;
+  status.className = "status winner";
+
+  document.getElementById("footer").textContent =
+    `Last Buzz: ${p.team} – ${p.name}`;
+});
+
+socket.on("reset", () => {
+  const status = document.getElementById("status");
+  status.textContent = "Waiting for next round…";
+  status.className = "status";
+});
+
+// Room expired
+socket.on("roomExpired", () => {
+  alert("This game has ended due to inactivity.");
+  location.reload();
+});
+</script>
+</body>
+</html>
