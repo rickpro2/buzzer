@@ -1,172 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Host Control Panel</title>
-<div style="text-align:center;margin-bottom:1.5rem;">
-  <label style="display:flex;justify-content:center;gap:10px;align-items:center;">
-    <span>Team Mode</span>
-    <input type="checkbox" id="teamToggle" checked>
-  </label>
-</div>
-  <script src="/socket.io/socket.io.js"></script>
+<meta charset="UTF-8">
+<title>Host Control Panel</title>
+<script src="/socket.io/socket.io.js"></script>
 
-  <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #111;
-      color: #f5f5f5;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      margin: 0;
-    }
+<style>
+body {
+  font-family: system-ui, sans-serif;
+  background:#111;
+  color:#f5f5f5;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:100vh;
+  margin:0;
+}
+.container {
+  max-width:900px;
+  width:95%;
+  background:#1b1b1b;
+  padding:2rem;
+  border-radius:16px;
+  box-shadow:0 10px 30px rgba(0,0,0,.6);
+}
+h1 { text-align:center; }
 
-    .container {
-      width: 95%;
-      max-width: 900px;
-      padding: 2rem;
-      background: #1b1b1b;
-      border-radius: 16px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-    }
+.status {
+  text-align:center;
+  padding:.8rem;
+  border-radius:999px;
+  background:#222;
+  margin-bottom:1.5rem;
+}
+.status.armed { background:#004d17; color:#c7ffd1; }
+.status.winner { background:#4d0000; color:#ffd5d5; }
 
-    h1 {
-      text-align: center;
-      margin-top: 0;
-      margin-bottom: 1.5rem;
-    }
+.toggle {
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  margin-bottom:1.5rem;
+}
 
-    /* STATUS BAR */
-    .status {
-      text-align: center;
-      font-size: 1.3rem;
-      padding: 0.75rem 1rem;
-      border-radius: 999px;
-      background: #222;
-      margin-bottom: 1.5rem;
-      transition: 0.3s ease;
-    }
-    .status.armed {
-      background: #004d17;
-      color: #c7ffd1;
-    }
-    .status.winner {
-      background: #4d0000;
-      color: #ffd5d5;
-    }
+input {
+  width:100%;
+  padding:.75rem;
+  border-radius:10px;
+  border:none;
+  background:#222;
+  color:#fff;
+}
 
-    /* TEAM SETUP */
-    #teamInput {
-      width: 100%;
-      background: #222;
-      padding: 0.75rem;
-      border-radius: 10px;
-      border: none;
-      color: #fff;
-      margin-bottom: 1rem;
-    }
+button {
+  cursor:pointer;
+  border:none;
+  border-radius:999px;
+  padding:.8rem 2rem;
+  font-weight:600;
+}
 
-    #setTeamsBtn {
-      width: 100%;
-      padding: 0.9rem;
-      font-size: 1rem;
-      border-radius: 10px;
-      border: none;
-      background: #0077ff;
-      color: white;
-      font-weight: 600;
-      cursor: pointer;
-      margin-bottom: 1.5rem;
-      transition: 0.3s;
-    }
-    #setTeamsBtn:hover {
-      background: #3395ff;
-    }
+#armBtn { background:#00af3f; color:white; }
+#resetBtn { background:#444; color:#eee; }
 
-    /* PLAYER LIST */
-    .teamBlock {
-      background: #222;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      border-radius: 12px;
-      box-shadow: inset 0 0 10px rgba(0,0,0,0.4);
-    }
-    .teamBlock h3 {
-      margin-top: 0;
-      color: #ffd86b;
-    }
+.teamBlock {
+  background:#222;
+  padding:1rem;
+  margin-top:1rem;
+  border-radius:12px;
+}
+.teamBlock h3 { color:#ffd86b; }
+.player { background:#333; padding:.5rem; border-radius:6px; margin:.3rem 0; }
 
-    .player {
-      padding: 0.6rem 1rem;
-      background: #333;
-      margin: 0.35rem 0;
-      border-radius: 8px;
-    }
-
-    /* CONTROL BUTTONS */
-    .controls {
-      display: flex;
-      justify-content: center;
-      gap: 1rem;
-      margin-top: 1.5rem;
-    }
-
-    button {
-      cursor: pointer;
-      border-radius: 999px;
-      border: none;
-      padding: 0.9rem 2rem;
-      font-size: 1rem;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      transition: 0.3s ease;
-    }
-
-    #armBtn {
-      background: #00af3f;
-      color: #fff;
-    }
-    #armBtn:hover {
-      background: #00c84a;
-    }
-
-    #resetBtn {
-      background: #444;
-      color: #eee;
-    }
-    #resetBtn:hover {
-      background: #666;
-    }
-
-  </style>
+.controls {
+  display:flex;
+  justify-content:center;
+  gap:1rem;
+  margin-top:1.5rem;
+}
+</style>
 </head>
 
 <body>
-
 <div class="container">
 
-  <h1>Host Control Panel</h1>
+<h1>Host Panel</h1>
 
-  <!-- STATUS BAR -->
-  <div id="status" class="status">
-    Waiting to arm buzzers…
-  </div>
+<div id="status" class="status">Waiting to arm buzzers…</div>
 
-  <!-- TEAM SETUP -->
-  <h2>Team Setup</h2>
-  <input id="teamInput" placeholder="Red, Blue, Green, Yellow" />
-  <button id="setTeamsBtn">Update Teams</button>
+<div class="toggle">
+  <label>Team Mode</label>
+  <input type="checkbox" id="teamToggle" checked>
+</div>
 
-  <!-- PLAYER LIST -->
-  <div id="players"></div>
+<input id="teamInput" placeholder="Red, Blue, Green">
+<button id="setTeamsBtn" style="margin-top:1rem;">Update Teams</button>
 
-  <!-- CONTROLS -->
-  <div class="controls">
-    <button id="armBtn">Arm Buzzers</button>
-    <button id="resetBtn">Reset</button>
-  </div>
+<div id="players"></div>
+
+<div class="controls">
+  <button id="armBtn">Arm Buzzers</button>
+  <button id="resetBtn">Reset</button>
+</div>
 
 </div>
 
@@ -176,62 +111,55 @@ const socket = io();
 const statusBox = document.getElementById("status");
 const playersDiv = document.getElementById("players");
 const teamInput = document.getElementById("teamInput");
+const teamToggle = document.getElementById("teamToggle");
 
-// Click actions
+teamToggle.onchange = () => socket.emit("toggleTeamMode", teamToggle.checked);
 document.getElementById("armBtn").onclick = () => socket.emit("arm");
 document.getElementById("resetBtn").onclick = () => socket.emit("reset");
 document.getElementById("setTeamsBtn").onclick = () => {
-  const teams = teamInput.value
-    .split(",")
-    .map(t => t.trim())
-    .filter(t => t.length > 0);
-
-  if (teams.length > 0) socket.emit("setTeams", teams);
+  socket.emit("setTeams",
+    teamInput.value.split(",").map(t=>t.trim()).filter(Boolean)
+  );
 };
 
-// Receive updated team list
-socket.on("teamList", (teams) => {
+socket.on("config", ({teamMode, teams}) => {
+  teamToggle.checked = teamMode;
+  teamInput.style.display = teamMode ? "block":"none";
+  document.getElementById("setTeamsBtn").style.display = teamMode?"block":"none";
   teamInput.value = teams.join(", ");
 });
 
-// Receive player list
-socket.on("playerList", (players) => {
-  let html = "<h2>Players by Team</h2>";
-
-  // Group players by team
+socket.on("playerList", players => {
+  let html = "<h2>Players</h2>";
   const grouped = {};
   players.forEach(p => {
-    if (!grouped[p.team]) grouped[p.team] = [];
+    grouped[p.team] = grouped[p.team] || [];
     grouped[p.team].push(p.name);
   });
-
-  for (let team in grouped) {
-    html += `<div class='teamBlock'><h3>${team}</h3>`;
-    html += grouped[team]
-      .map(name => `<div class='player'>${name}</div>`)
-      .join("");
+  for (let t in grouped) {
+    html += `<div class="teamBlock"><h3>${t}</h3>`;
+    html += grouped[t].map(n=>`<div class="player">${n}</div>`).join("");
     html += "</div>";
   }
-
   playersDiv.innerHTML = html;
 });
 
-// GAME STATE EVENTS
-socket.on("armed", () => {
-  statusBox.textContent = "Buzzers Armed — Waiting for buzz!";
-  statusBox.className = "status armed";
+socket.on("armed", ()=> {
+  statusBox.textContent="Buzzers Armed!";
+  statusBox.className="status armed";
 });
 
-socket.on("winner", (player) => {
-  statusBox.textContent = `${player.team} – ${player.name} buzzed first!`;
-  statusBox.className = "status winner";
+socket.on("winner", p=> {
+  statusBox.textContent = p.team==="Solo"
+    ? `${p.name} buzzed first!`
+    : `${p.team} – ${p.name} buzzed first!`;
+  statusBox.className="status winner";
 });
 
-socket.on("reset", () => {
-  statusBox.textContent = "Waiting to arm buzzers…";
-  statusBox.className = "status";
+socket.on("reset", ()=> {
+  statusBox.textContent="Waiting to arm buzzers…";
+  statusBox.className="status";
 });
 </script>
-
 </body>
 </html>
