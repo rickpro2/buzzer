@@ -44,6 +44,12 @@ input,select {
   margin-bottom:1rem;
 }
 
+#error {
+  color:#ff7777;
+  text-align:center;
+  margin-bottom:1rem;
+}
+
 #buzzBtn {
   width:260px;
   height:260px;
@@ -65,6 +71,7 @@ input,select {
 <div class="container">
 
 <div id="joinScreen">
+  <div id="error"></div>
   <input id="nameInput" placeholder="Your Name">
   <select id="teamSelect"></select>
   <button id="joinBtn">Join</button>
@@ -87,6 +94,7 @@ const buzz=document.getElementById("buzzScreen");
 const buzzBtn=document.getElementById("buzzBtn");
 const status=document.getElementById("status");
 const teamSelect=document.getElementById("teamSelect");
+const errorBox=document.getElementById("error");
 
 socket.on("config", c=>{
   teamMode=c.teamMode;
@@ -96,12 +104,19 @@ socket.on("config", c=>{
 
 document.getElementById("joinBtn").onclick=()=>{
   const name=document.getElementById("nameInput").value.trim();
+  const team=teamSelect.value;
   if(!name)return;
-  me={name,team:teamMode?teamSelect.value:"Solo"};
-  socket.emit("join",me);
+  socket.emit("join",{name,team});
+};
+
+socket.on("joinError", msg=>{
+  errorBox.textContent=msg;
+});
+
+socket.on("playerList",()=>{
   join.style.display="none";
   buzz.style.display="block";
-};
+});
 
 buzzBtn.onclick=()=>{
   buzzBtn.className="you";

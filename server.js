@@ -22,7 +22,7 @@ let winner = null;
 // ======================
 io.on("connection", (socket) => {
 
-  // Send config to newly connected client
+  // Send config
   socket.emit("config", { teamMode, teams });
 
   // HOST: toggle team mode
@@ -30,7 +30,7 @@ io.on("connection", (socket) => {
     teamMode = enabled;
 
     if (!teamMode) {
-      teams = [];
+      // Force everyone to Solo
       Object.values(players).forEach(p => p.team = "Solo");
     }
 
@@ -41,22 +41,34 @@ io.on("connection", (socket) => {
   // HOST: set teams
   socket.on("setTeams", (newTeams) => {
     if (!teamMode) return;
-    teams = newTeams;
+
+    teams = newTeams.filter(t => t && t.trim());
     io.emit("config", { teamMode, teams });
   });
 
   // PLAYER joins
   socket.on("join", ({ name, team }) => {
+
+    // ❌ Reject solo players in team mode
+    if (teamMode) {
+      if (!team || !teams.includes(team)) {
+        socket.emit("joinError", "Team selection is required.");
+        return;
+      }
+    }
+
     players[socket.id] = {
       name,
       team: teamMode ? team : "Solo"
     };
+
     io.emit("playerList", Object.values(players));
   });
 
   // PLAYER buzz
   socket.on("buzz", () => {
     if (!armed || winner) return;
+
     winner = players[socket.id];
     armed = false;
     io.emit("winner", winner);
@@ -79,7 +91,6 @@ io.on("connection", (socket) => {
     delete players[socket.id];
     io.emit("playerList", Object.values(players));
   });
-
 });
 
 server.listen(process.env.PORT || 3000, () => {
