@@ -174,6 +174,33 @@ io.on("connection", (socket) => {
   });
 });
 
+// AUDIENCE joins room (read-only)
+socket.on("joinAudience", (pin) => {
+  const room = rooms[pin];
+  if (!room) {
+    socket.emit("joinError", "Room not found");
+    return;
+  }
+
+  socket.join(pin);
+
+  // Immediately sync state
+  socket.emit("roomInfo", {
+    teamMode: room.teamMode,
+    teams: room.teams
+  });
+
+  socket.emit("scoreUpdate", room.scores);
+
+  if (room.winner) {
+    socket.emit("winner", room.winner);
+  } else if (room.armed) {
+    socket.emit("armed");
+  }
+});
+
+
+
 server.listen(process.env.PORT || 3000, () => {
   console.log("Buzzer server running");
 });

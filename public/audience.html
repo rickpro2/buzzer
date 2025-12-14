@@ -11,13 +11,12 @@ body {
   background: #0e0e0e;
   color: #ffffff;
   margin: 0;
-  padding: 0;
 }
 
 .wrapper {
   min-height: 100vh;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
 }
 
 .header {
@@ -60,7 +59,7 @@ body {
 .main {
   padding: 2rem;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.5rem;
 }
 
@@ -97,53 +96,43 @@ body {
 <body>
 <div class="wrapper">
 
-  <!-- HEADER -->
   <div class="header">
     <h1>QUIZ SHOW</h1>
-    <div id="pin" class="pin">Enter PIN</div>
+    <div id="pin" class="pin">Waiting for PIN…</div>
   </div>
 
-  <!-- STATUS -->
   <div id="status" class="status">
     Waiting for host…
   </div>
 
-  <!-- SCOREBOARD -->
-  <div class="main" id="scores">
-    <!-- score cards injected here -->
+  <div id="scores" class="main">
+    <div style="color:#777;font-size:1.5rem;">Waiting for scores…</div>
   </div>
 
-  <!-- FOOTER -->
   <div id="footer" class="footer">
-    Waiting for game…
+    Join the game using the Room PIN
   </div>
 
 </div>
 
 <script>
 const socket = io();
-let pin = null;
-let lastWinner = null;
+let pin = prompt("Enter Room PIN for Audience Display:");
 
-// Prompt for PIN
-pin = prompt("Enter Room PIN for Audience Display:");
 if (pin) {
-  socket.emit("checkRoom", pin);
+  document.getElementById("pin").textContent = `ROOM PIN: ${pin}`;
+  socket.emit("joinAudience", pin);
 }
 
-// Load room info
-socket.on("roomInfo", ({ teamMode, teams }) => {
-  document.getElementById("pin").textContent = `ROOM PIN: ${pin}`;
-});
-
-// Scoreboard updates
+// SCOREBOARD
 socket.on("scoreUpdate", (scores) => {
   const container = document.getElementById("scores");
   container.innerHTML = "";
 
   const keys = Object.keys(scores || {});
   if (!keys.length) {
-    container.innerHTML = `<div style="color:#777;font-size:1.5rem;">Waiting for scores…</div>`;
+    container.innerHTML =
+      `<div style="color:#777;font-size:1.5rem;">Waiting for scores…</div>`;
     return;
   }
 
@@ -158,7 +147,7 @@ socket.on("scoreUpdate", (scores) => {
   });
 });
 
-// Game states
+// GAME STATES
 socket.on("armed", () => {
   const status = document.getElementById("status");
   status.textContent = "🔴 BUZZERS ARMED!";
@@ -166,7 +155,6 @@ socket.on("armed", () => {
 });
 
 socket.on("winner", (p) => {
-  lastWinner = p;
   const status = document.getElementById("status");
   status.textContent = `🏆 ${p.team} – ${p.name} buzzed first!`;
   status.className = "status winner";
@@ -181,7 +169,7 @@ socket.on("reset", () => {
   status.className = "status";
 });
 
-// Room expired
+// EXPIRATION
 socket.on("roomExpired", () => {
   alert("This game has ended due to inactivity.");
   location.reload();
