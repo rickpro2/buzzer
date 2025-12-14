@@ -8,88 +8,143 @@ const io = new Server(server);
 
 app.use(express.static("public"));
 
-// ======================
-// GAME STATE
-// ======================
-let players = {};                 // { socketId: { name, team } }
-let teams = ["Red", "Blue", "Green", "Yellow"];
-let teamMode = true;              // ⭐ TOGGLE
-let armed = false;
-let winner = null;
+/*
+ROOM STRUCTURE
+rooms = {
+  "1234": {
+    teamMode: true,
+    teams: ["Red","Blue"],
+    players: { socketId: { name, team } },
+    armed: false,
+    winner: null
+  }
+}
+*/
+const rooms = {};
+
+// Utility
+const generatePin = () =>
+  Math.floor(1000 + Math.random() * 9000).toString();
 
 // ======================
 // SOCKET LOGIC
 // ======================
 io.on("connection", (socket) => {
 
-  // Send config
-  socket.emit("config", { teamMode, teams });
-
-  // HOST: toggle team mode
-  socket.on("toggleTeamMode", (enabled) => {
-    teamMode = enabled;
-
-    if (!teamMode) {
-      // Force everyone to Solo
-      Object.values(players).forEach(p => p.team = "Solo");
-    }
-
-    io.emit("config", { teamMode, teams });
-    io.emit("playerList", Object.values(players));
-  });
-
-  // HOST: set teams
-  socket.on("setTeams", (newTeams) => {
-    if (!teamMode) return;
-
-    teams = newTeams.filter(t => t && t.trim());
-    io.emit("config", { teamMode, teams });
-  });
-
-  // PLAYER joins
-  socket.on("join", ({ name, team }) => {
-
-    // ❌ Reject solo players in team mode
-    if (teamMode) {
-      if (!team || !teams.includes(team)) {
-        socket.emit("joinError", "Team selection is required.");
-        return;
-      }
-    }
-
-    players[socket.id] = {
-      name,
-      team: teamMode ? team : "Solo"
+  // HOST creates room
+  socket.on("createRoom", () => {
+    const pin = generatePin();
+    rooms[pin] = {
+      teamMode: true,
+      teams: ["Red", "Blue", "Green", "Yellow"],
+      players: {},
+      armed: false,
+      winner: null
     };
 
-    io.emit("playerList", Object.values(players));
+    socket.join(pin);
+    socket.emit("roomCreated", { pin, config: rooms[pin] });
+  });
+
+  // PLAYER or HOST joins room
+  socket.on("joinRoom", ({ pin, name, team }) => {
+    const room = rooms[pin];
+    if (!room) {
+      socket.emit("joinError", "Invalid room PIN");
+      return;
+    }
+
+    socket.join(pin);
+
+    // Enforce team rules
+    if (room.teamMode && (!team || !room.teams.includes(team))) {
+      socket.emit("joinError", "Team selection required");
+      return;
+    }
+
+    room.players[socket.id] = {
+      name,
+      team: room.teamMode ? team : "Solo"
+    };
+
+    io.to(pin).emit("playerList", Object.values(room.players));
+    socket.emit("config", {
+      teamMode: room.teamMode,
+      teams: room.teams,
+      pin
+    });
+  });
+
+  // HOST toggles team mode
+  socket.on("toggleTeamMode", ({ pin, enabled }) => {
+    const room = rooms[pin];
+    if (!room) return;
+
+    room.teamMode = enabled;
+
+    if (!enabled) {
+      Object.values(room.players).forEach(p => p.team = "Solo");
+    }
+
+    io.to(pin).emit("config", {
+      teamMode: room.teamMode,
+      teams: room.teams,
+      pin
+    });
+    io.to(pin).emit("playerList", Object.values(room.players));
+  });
+
+  // HOST sets teams
+  socket.on("setTeams", ({ pin, teams }) => {
+    const room = rooms[pin];
+    if (!room || !room.teamMode) return;
+
+    room.teams = teams;
+    io.to(pin).emit("config", {
+      teamMode: room.teamMode,
+      teams: room.teams,
+      pin
+    });
+  });
+
+  // HOST arms buzzers
+  socket.on("arm", (pin) => {
+    const room = rooms[pin];
+    if (!room) return;
+
+    room.armed = true;
+    room.winner = null;
+    io.to(pin).emit("armed");
   });
 
   // PLAYER buzz
-  socket.on("buzz", () => {
-    if (!armed || winner) return;
+  socket.on("buzz", (pin) => {
+    const room = rooms[pin];
+    if (!room || !room.armed || room.winner) return;
 
-    winner = players[socket.id];
-    armed = false;
-    io.emit("winner", winner);
+    room.winner = room.players[socket.id];
+    room.armed = false;
+    io.to(pin).emit("winner", room.winner);
   });
 
-  // HOST controls
-  socket.on("arm", () => {
-    armed = true;
-    winner = null;
-    io.emit("armed");
-  });
+  // HOST reset
+  socket.on("reset", (pin) => {
+    const room = rooms[pin];
+    if (!room) return;
 
-  socket.on("reset", () => {
-    armed = false;
-    winner = null;
-    io.emit("reset");
+    room.armed = false;
+    room.winner = null;
+    io.to(pin).emit("reset");
   });
 
   socket.on("disconnect", () => {
-    delete players[socket.id];
-    io.emit("playerList", Object.values(players));
+    for (const pin in rooms) {
+      const room = rooms[pin];
+      if (room.players[socket.id]) {
+        delete room.players[socket.id];
+        io.to(pin).emit("playerList", Object.values(room.players));
+      }
+    }
   });
 });
 
