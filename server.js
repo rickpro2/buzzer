@@ -169,6 +169,19 @@ io.on("connection", (socket) => {
   });
 });
 
+socket.on("checkRoom", (pin) => {
+  const room = rooms[pin];
+  if (!room) {
+    socket.emit("joinError", "Room not found");
+    return;
+  }
+  socket.emit("roomInfo", {
+    teamMode: room.teamMode,
+    teams: room.teams
+  });
+});
+
+
 server.listen(process.env.PORT || 3000, () =>
   console.log("Buzzer server running")
 );
