@@ -10,7 +10,7 @@ app.use(express.static("public"));
 
 // ================= CONFIG =================
 const INACTIVITY_LIMIT_MS = 2 * 60 * 60 * 1000; // 2 hours
-const CLEANUP_INTERVAL_MS = 60 * 1000;          // 1 min
+const CLEANUP_INTERVAL_MS = 60 * 1000;
 
 // ================= ROOMS ==================
 const rooms = {};
@@ -53,7 +53,20 @@ io.on("connection", (socket) => {
     socket.emit("roomCreated", { pin });
   });
 
-  // JOIN ROOM
+  // PLAYER checks room (loads teams BEFORE join)
+  socket.on("checkRoom", (pin) => {
+    const room = rooms[pin];
+    if (!room) {
+      socket.emit("joinError", "Room not found");
+      return;
+    }
+    socket.emit("roomInfo", {
+      teamMode: room.teamMode,
+      teams: room.teams
+    });
+  });
+
+  // PLAYER joins room
   socket.on("joinRoom", ({ pin, name, team }) => {
     const room = rooms[pin];
     if (!room) return socket.emit("joinError", "Room not found");
@@ -76,6 +89,7 @@ io.on("connection", (socket) => {
 
     io.to(pin).emit("playerList", Object.values(room.players));
     io.to(pin).emit("scoreUpdate", room.scores);
+
     socket.emit("config", {
       pin,
       teamMode: room.teamMode,
@@ -83,44 +97,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  // TEAM MODE TOGGLE
-  socket.on("toggleTeamMode", ({ pin, enabled }) => {
-    const room = rooms[pin];
-    if (!room) return;
-
-    room.teamMode = enabled;
-    room.scores = {};
-    touchRoom(pin);
-
-    Object.values(room.players).forEach(p => {
-      const key = enabled ? p.team : p.name;
-      room.scores[key] = 0;
-      p.team = enabled ? p.team : "Solo";
-    });
-
-    io.to(pin).emit("config", {
-      pin,
-      teamMode: room.teamMode,
-      teams: room.teams
-    });
-    io.to(pin).emit("scoreUpdate", room.scores);
-    io.to(pin).emit("playerList", Object.values(room.players));
-  });
-
-  // SET TEAMS
-  socket.on("setTeams", ({ pin, teams }) => {
-    const room = rooms[pin];
-    if (!room || !room.teamMode) return;
-    room.teams = teams;
-    touchRoom(pin);
-    io.to(pin).emit("config", {
-      pin,
-      teamMode: room.teamMode,
-      teams: room.teams
-    });
-  });
-
-  // SCORE UPDATE
+  // HOST scoring
   socket.on("updateScore", ({ pin, key, delta }) => {
     const room = rooms[pin];
     if (!room || room.scores[key] === undefined) return;
@@ -168,19 +145,6 @@ io.on("connection", (socket) => {
     }
   });
 });
-
-socket.on("checkRoom", (pin) => {
-  const room = rooms[pin];
-  if (!room) {
-    socket.emit("joinError", "Room not found");
-    return;
-  }
-  socket.emit("roomInfo", {
-    teamMode: room.teamMode,
-    teams: room.teams
-  });
-});
-
 
 server.listen(process.env.PORT || 3000, () =>
   console.log("Buzzer server running")

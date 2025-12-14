@@ -6,52 +6,13 @@
 <script src="/socket.io/socket.io.js"></script>
 
 <style>
-body {
-  font-family: system-ui;
-  background: #111;
-  color: #fff;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  margin: 0;
-}
-.container {
-  width: 420px;
-  background: #1b1b1b;
-  padding: 2rem;
-  border-radius: 16px;
-  text-align: center;
-}
-input, select {
-  width: 100%;
-  padding: .75rem;
-  margin-bottom: 1rem;
-  border-radius: 8px;
-  border: none;
-  background: #222;
-  color: #fff;
-}
-button {
-  width: 100%;
-  padding: .75rem;
-  border-radius: 999px;
-  border: none;
-  font-weight: 600;
-}
-#buzzBtn {
-  width: 260px;
-  height: 260px;
-  border-radius: 50%;
-  font-size: 2rem;
-  border: none;
-  background: #555;
-  color: #ccc;
-}
-#buzzBtn.armed { background: #d40000; color: #fff; }
-#buzzBtn.you { background: #009900; color: #fff; }
-#buzzBtn.locked { background: #333; color: #777; }
-#error { color: #ff7777; margin-bottom: 1rem; }
+body{font-family:system-ui;background:#111;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}
+.container{width:420px;background:#1b1b1b;padding:2rem;border-radius:16px;text-align:center}
+input,select{width:100%;padding:.75rem;margin-bottom:1rem;border-radius:8px;border:none;background:#222;color:#fff}
+#buzzBtn{width:260px;height:260px;border-radius:50%;font-size:2rem;border:none;background:#555;color:#ccc}
+#buzzBtn.armed{background:#d40000;color:#fff}
+#buzzBtn.locked{background:#333;color:#777}
+#error{color:#ff7777;margin-bottom:1rem}
 </style>
 </head>
 
@@ -66,7 +27,7 @@ button {
     <option>Enter PIN first</option>
   </select>
   <button onclick="checkRoom()">Next</button>
-  <button onclick="join()" style="margin-top:8px;">Join Game</button>
+  <button onclick="join()">Join Game</button>
 </div>
 
 <div id="buzz" style="display:none;">
@@ -78,62 +39,55 @@ button {
 
 <script>
 const socket = io();
-let pin = null;
+let pin=null;
 
-// UI refs
-const teamSelect = document.getElementById("teamSelect");
-const errorBox = document.getElementById("error");
+const teamSelect=document.getElementById("teamSelect");
+const errorBox=document.getElementById("error");
 
-// STEP 1: Check room & load teams
-function checkRoom() {
-  pin = document.getElementById("pinInput").value.trim();
-  if (!pin) return;
-  socket.emit("checkRoom", pin);
+function checkRoom(){
+  pin=document.getElementById("pinInput").value.trim();
+  if(!pin) return;
+  socket.emit("checkRoom",pin);
 }
 
-// Server sends room config
-socket.on("roomInfo", ({ teamMode, teams }) => {
-  teamSelect.disabled = !teamMode;
-  teamSelect.innerHTML = teamMode
-    ? teams.map(t => `<option>${t}</option>`).join("")
+socket.on("roomInfo",({teamMode,teams})=>{
+  teamSelect.disabled=!teamMode;
+  teamSelect.innerHTML=teamMode
+    ? teams.map(t=>`<option>${t}</option>`).join("")
     : `<option>Solo</option>`;
 });
 
-// STEP 2: Join room
-function join() {
-  const name = document.getElementById("nameInput").value.trim();
-  const team = teamSelect.value;
-  if (!name) return;
-
-  socket.emit("joinRoom", { pin, name, team });
+function join(){
+  const name=document.getElementById("nameInput").value.trim();
+  if(!name) return;
+  socket.emit("joinRoom",{
+    pin,
+    name,
+    team:teamSelect.value
+  });
 }
 
-// Join errors
-socket.on("joinError", msg => {
-  errorBox.textContent = msg;
+socket.on("joinError",msg=>errorBox.textContent=msg);
+
+socket.on("playerList",()=>{
+  document.getElementById("join").style.display="none";
+  document.getElementById("buzz").style.display="block";
 });
 
-// Successful join
-socket.on("playerList", () => {
-  document.getElementById("join").style.display = "none";
-  document.getElementById("buzz").style.display = "block";
+const btn=document.getElementById("buzzBtn");
+btn.onclick=()=>socket.emit("buzz",pin);
+
+socket.on("armed",()=>{
+  btn.disabled=false;
+  btn.className="armed";
 });
 
-// BUZZ LOGIC
-const btn = document.getElementById("buzzBtn");
-btn.onclick = () => socket.emit("buzz", pin);
-
-socket.on("armed", () => {
-  btn.disabled = false;
-  btn.className = "armed";
+socket.on("winner",()=>{
+  btn.disabled=true;
+  btn.className="locked";
 });
 
-socket.on("winner", () => {
-  btn.disabled = true;
-  btn.className = "locked";
-});
-
-socket.on("roomExpired", () => {
+socket.on("roomExpired",()=>{
   alert("Game ended due to inactivity");
   location.reload();
 });
