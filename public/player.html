@@ -98,6 +98,11 @@ socket.on("winner", p => {
   buzzBtn.className =
     me && me.name===p.name ? "you":"locked";
 });
+
+socket.on("roomExpired", () => {
+  alert("This game has ended due to inactivity.");
+  window.location.reload();
+});
 </script>
 </body>
 </html>

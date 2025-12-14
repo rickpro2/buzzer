@@ -132,6 +132,11 @@ socket.on("winner", p => {
 socket.on("reset", () => {
   document.getElementById("status").textContent = "Waiting…";
 });
+
+socket.on("roomExpired", () => {
+  alert("This room expired due to inactivity.");
+  window.location.reload();
+});
 </script>
 </body>
 </html>
