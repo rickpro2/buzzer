@@ -1,66 +1,275 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Host Panel</title>
+<meta charset="UTF-8" />
+<title>Host Control Panel</title>
 <script src="/socket.io/socket.io.js"></script>
 
 <style>
-body{font-family:system-ui;background:#111;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}
-.container{max-width:900px;width:95%;background:#1b1b1b;padding:2rem;border-radius:16px}
-h1{text-align:center}
-.card{background:#222;padding:1rem;border-radius:12px;margin:.5rem 0}
-.row{display:flex;justify-content:space-between;align-items:center}
-button{border:none;border-radius:999px;padding:.5rem 1.2rem;font-weight:600;cursor:pointer}
-.add{background:#00af3f;color:#fff}
-.sub{background:#d40000;color:#fff}
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #111;
+    color: #f5f5f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+  }
+  .container {
+    width: 95%;
+    max-width: 900px;
+    padding: 2rem;
+    background: #1b1b1b;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  }
+  h1 { text-align: center; margin-top: 0; }
+
+  .status {
+    text-align: center;
+    font-size: 1.2rem;
+    padding: 0.75rem 1rem;
+    border-radius: 999px;
+    background: #222;
+    margin-bottom: 1.2rem;
+  }
+
+  .row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+
+  button {
+    cursor: pointer;
+    border-radius: 999px;
+    border: none;
+    padding: 0.75rem 1.4rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .btn-green { background: #00af3f; color: #fff; }
+  .btn-gray  { background: #444; color: #eee; }
+  .btn-blue  { background: #0077ff; color: #fff; }
+
+  input {
+    width: 100%;
+    padding: 0.9rem 1rem;
+    border-radius: 12px;
+    border: none;
+    background: #222;
+    color: #fff;
+    outline: none;
+    margin-bottom: 0.75rem;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  @media (max-width: 800px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: #222;
+    padding: 1rem;
+    border-radius: 14px;
+    border: 1px solid #333;
+  }
+
+  .teamBlock {
+    background: #1f1f1f;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 0.75rem;
+    margin-top: 0.75rem;
+  }
+  .teamBlock h3 {
+    margin: 0 0 0.5rem 0;
+    color: #ffd86b;
+  }
+  .player {
+    background: #333;
+    padding: 0.5rem 0.75rem;
+    border-radius: 10px;
+    margin: 0.35rem 0;
+  }
+
+  .scoreRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #1f1f1f;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 0.75rem;
+    margin-top: 0.6rem;
+  }
+  .scoreBtns button {
+    padding: 0.35rem 0.9rem;
+    font-weight: 800;
+  }
+  .btn-plus { background: #00af3f; color: #fff; }
+  .btn-minus { background: #d40000; color: #fff; }
 </style>
 </head>
 
 <body>
 <div class="container">
-<h1>Host Control Panel</h1>
+  <h1>Host Control Panel</h1>
 
-<button onclick="socket.emit('createRoom')">Create Room</button>
-<h2 id="pin"></h2>
+  <div id="pin" style="text-align:center;font-size:1.4rem;font-weight:800;margin-bottom:0.5rem;"></div>
+  <div id="status" class="status">Create a room to begin.</div>
 
-<div>
-  <button onclick="socket.emit('arm',pin)">Arm</button>
-  <button onclick="socket.emit('reset',pin)">Reset</button>
-</div>
+  <div class="row">
+    <button class="btn-blue" id="createRoomBtn">Create Room</button>
+    <button class="btn-green" id="armBtn" disabled>Arm</button>
+    <button class="btn-gray" id="resetBtn" disabled>Reset</button>
+  </div>
 
-<h2>Scoreboard</h2>
-<div id="scores"></div>
+  <div class="grid">
+    <div class="panel">
+      <h2 style="margin-top:0;">Teams</h2>
+      <div style="color:#999;font-size:0.9rem;margin-bottom:0.75rem;">
+        Enter team names separated by commas, then click Update.
+      </div>
+      <input id="teamInput" placeholder="Red, Blue, Green, Yellow" />
+      <button class="btn-blue" id="setTeamsBtn" disabled>Update Teams</button>
+
+      <h2 style="margin-top:1.5rem;">Players Joined</h2>
+      <div id="players"></div>
+    </div>
+
+    <div class="panel">
+      <h2 style="margin-top:0;">Scoreboard</h2>
+      <div id="scores"></div>
+    </div>
+  </div>
 </div>
 
 <script>
 const socket = io();
-let pin=null;
+let pin = null;
 
-socket.on("roomCreated", d=>{
-  pin=d.pin;
-  document.getElementById("pin").textContent="Room PIN: "+pin;
-  socket.emit("joinRoom",{pin});
+const pinEl = document.getElementById("pin");
+const statusEl = document.getElementById("status");
+const playersEl = document.getElementById("players");
+const scoresEl = document.getElementById("scores");
+
+const createRoomBtn = document.getElementById("createRoomBtn");
+const armBtn = document.getElementById("armBtn");
+const resetBtn = document.getElementById("resetBtn");
+const setTeamsBtn = document.getElementById("setTeamsBtn");
+const teamInput = document.getElementById("teamInput");
+
+createRoomBtn.onclick = () => socket.emit("createRoom");
+armBtn.onclick = () => socket.emit("arm", pin);
+resetBtn.onclick = () => socket.emit("reset", pin);
+
+setTeamsBtn.onclick = () => {
+  const teams = teamInput.value
+    .split(",")
+    .map(t => t.trim())
+    .filter(Boolean);
+
+  socket.emit("setTeams", { pin, teams });
+};
+
+socket.on("roomCreated", (d) => {
+  pin = d.pin;
+  pinEl.textContent = `Room PIN: ${pin}`;
+  statusEl.textContent = "Room created. Players can join now.";
+  armBtn.disabled = false;
+  resetBtn.disabled = false;
+  setTeamsBtn.disabled = false;
+
+  // Host joins their own room so they receive room events
+  socket.emit("joinRoom", { pin, name: "HOST", team: "Red" });
 });
 
-socket.on("scoreUpdate", scores=>{
-  const el=document.getElementById("scores");
-  el.innerHTML="";
-  Object.keys(scores).forEach(k=>{
-    el.innerHTML+=`
-      <div class="card row">
-        <strong>${k}</strong>
-        <div>
-          <button class="sub" onclick="socket.emit('updateScore',{pin,key:'${k}',delta:-1})">−</button>
-          <span style="margin:0 10px">${scores[k]}</span>
-          <button class="add" onclick="socket.emit('updateScore',{pin,key:'${k}',delta:1})">+</button>
-        </div>
-      </div>`;
+socket.on("roomInfo", ({ teams }) => {
+  // Keep host's input synced with current teams
+  teamInput.value = (teams || []).join(", ");
+});
+
+socket.on("playerList", (players) => {
+  // Remove HOST from the displayed list if present
+  const filtered = (players || []).filter(p => p.name !== "HOST");
+
+  if (filtered.length === 0) {
+    playersEl.innerHTML = `<div style="color:#999;">No players joined yet.</div>`;
+    return;
+  }
+
+  // Group by team
+  const grouped = {};
+  filtered.forEach(p => {
+    const key = p.team || "Unknown";
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(p.name);
+  });
+
+  let html = "";
+  Object.keys(grouped).forEach(team => {
+    html += `<div class="teamBlock"><h3>${team}</h3>`;
+    html += grouped[team].map(n => `<div class="player">${n}</div>`).join("");
+    html += `</div>`;
+  });
+
+  playersEl.innerHTML = html;
+});
+
+socket.on("scoreUpdate", (scores) => {
+  scoresEl.innerHTML = "";
+  const keys = Object.keys(scores || {});
+  if (keys.length === 0) {
+    scoresEl.innerHTML = `<div style="color:#999;">No score entries yet (players haven’t joined / teams not set).</div>`;
+    return;
+  }
+
+  keys.forEach((k) => {
+    const value = scores[k];
+    const row = document.createElement("div");
+    row.className = "scoreRow";
+    row.innerHTML = `
+      <div style="font-weight:800;">${k}</div>
+      <div class="scoreBtns">
+        <button class="btn-minus">−</button>
+        <span style="display:inline-block;min-width:40px;text-align:center;font-weight:900;">${value}</span>
+        <button class="btn-plus">+</button>
+      </div>
+    `;
+
+    const minusBtn = row.querySelector(".btn-minus");
+    const plusBtn = row.querySelector(".btn-plus");
+
+    minusBtn.onclick = () => socket.emit("updateScore", { pin, key: k, delta: -1 });
+    plusBtn.onclick = () => socket.emit("updateScore", { pin, key: k, delta: 1 });
+
+    scoresEl.appendChild(row);
   });
 });
 
-socket.on("roomExpired",()=>{
-  alert("Room expired due to inactivity");
+socket.on("armed", () => {
+  statusEl.textContent = "Buzzers armed — waiting for first buzz!";
+});
+
+socket.on("winner", (p) => {
+  statusEl.textContent = `${p.team} – ${p.name} buzzed first!`;
+});
+
+socket.on("reset", () => {
+  statusEl.textContent = "Reset. Ready for next round.";
+});
+
+socket.on("roomExpired", () => {
+  alert("Room expired due to inactivity (2 hours).");
   location.reload();
 });
 </script>

@@ -10,7 +10,7 @@ app.use(express.static("public"));
 
 // ================= CONFIG =================
 const INACTIVITY_LIMIT_MS = 2 * 60 * 60 * 1000; // 2 hours
-const CLEANUP_INTERVAL_MS = 60 * 1000;
+const CLEANUP_INTERVAL_MS = 60 * 1000;          // 1 min
 
 // ================= ROOMS ==================
 const rooms = {};
@@ -34,9 +34,7 @@ setInterval(() => {
   }
 }, CLEANUP_INTERVAL_MS);
 
-// ================= SOCKETS =================
 io.on("connection", (socket) => {
-
   // HOST creates room
   socket.on("createRoom", () => {
     const pin = generatePin();
@@ -47,7 +45,7 @@ io.on("connection", (socket) => {
       scores: {},
       armed: false,
       winner: null,
-      lastActivity: Date.now()
+      lastActivity: Date.now(),
     };
     socket.join(pin);
     socket.emit("roomCreated", { pin });
@@ -56,14 +54,36 @@ io.on("connection", (socket) => {
   // PLAYER checks room (loads teams BEFORE join)
   socket.on("checkRoom", (pin) => {
     const room = rooms[pin];
-    if (!room) {
-      socket.emit("joinError", "Room not found");
-      return;
-    }
+    if (!room) return socket.emit("joinError", "Room not found");
+
     socket.emit("roomInfo", {
       teamMode: room.teamMode,
-      teams: room.teams
+      teams: room.teams,
     });
+  });
+
+  // HOST sets teams (creates/renames teams)
+  socket.on("setTeams", ({ pin, teams }) => {
+    const room = rooms[pin];
+    if (!room) return;
+
+    // Clean & dedupe
+    const cleaned = (teams || [])
+      .map((t) => String(t).trim())
+      .filter(Boolean);
+
+    room.teams = [...new Set(cleaned)];
+    touchRoom(pin);
+
+    // Optional: initialize scoreboard buckets for teams (so they appear immediately)
+    if (room.teamMode) {
+      room.teams.forEach((t) => {
+        if (room.scores[t] === undefined) room.scores[t] = 0;
+      });
+    }
+
+    io.to(pin).emit("roomInfo", { teamMode: room.teamMode, teams: room.teams });
+    io.to(pin).emit("scoreUpdate", room.scores);
   });
 
   // PLAYER joins room
@@ -71,7 +91,13 @@ io.on("connection", (socket) => {
     const room = rooms[pin];
     if (!room) return socket.emit("joinError", "Room not found");
 
-    if (room.teamMode && (!team || !room.teams.includes(team))) {
+    const safeName = String(name || "").trim();
+    const safeTeam = String(team || "").trim();
+
+    if (!safeName) return socket.emit("joinError", "Name is required");
+
+    // No solo players when Team Mode is ON
+    if (room.teamMode && (!safeTeam || !room.teams.includes(safeTeam))) {
       return socket.emit("joinError", "Team selection required");
     }
 
@@ -79,13 +105,12 @@ io.on("connection", (socket) => {
     touchRoom(pin);
 
     room.players[socket.id] = {
-      name,
-      team: room.teamMode ? team : "Solo"
+      name: safeName,
+      team: room.teamMode ? safeTeam : "Solo",
     };
 
-    const scoreKey = room.teamMode ? team : name;
-    if (room.scores[scoreKey] === undefined)
-      room.scores[scoreKey] = 0;
+    const scoreKey = room.teamMode ? safeTeam : safeName;
+    if (room.scores[scoreKey] === undefined) room.scores[scoreKey] = 0;
 
     io.to(pin).emit("playerList", Object.values(room.players));
     io.to(pin).emit("scoreUpdate", room.scores);
@@ -93,15 +118,17 @@ io.on("connection", (socket) => {
     socket.emit("config", {
       pin,
       teamMode: room.teamMode,
-      teams: room.teams
+      teams: room.teams,
     });
   });
 
   // HOST scoring
   socket.on("updateScore", ({ pin, key, delta }) => {
     const room = rooms[pin];
-    if (!room || room.scores[key] === undefined) return;
-    room.scores[key] += delta;
+    if (!room) return;
+    if (room.scores[key] === undefined) return;
+
+    room.scores[key] += Number(delta) || 0;
     touchRoom(pin);
     io.to(pin).emit("scoreUpdate", room.scores);
   });
@@ -119,6 +146,7 @@ io.on("connection", (socket) => {
   socket.on("buzz", (pin) => {
     const room = rooms[pin];
     if (!room || !room.armed || room.winner) return;
+
     room.winner = room.players[socket.id];
     room.armed = false;
     touchRoom(pin);
@@ -146,6 +174,6 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(process.env.PORT || 3000, () =>
-  console.log("Buzzer server running")
-);
+server.listen(process.env.PORT || 3000, () => {
+  console.log("Buzzer server running");
+});
