@@ -1,276 +1,171 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <title>Host Control Panel</title>
 <script src="/socket.io/socket.io.js"></script>
 
 <style>
-  body {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #111;
-    color: #f5f5f5;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    margin: 0;
-  }
-  .container {
-    width: 95%;
-    max-width: 900px;
-    padding: 2rem;
-    background: #1b1b1b;
-    border-radius: 16px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-  }
-  h1 { text-align: center; margin-top: 0; }
+body {
+  font-family: system-ui;
+  background: #111;
+  color: #f5f5f5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+}
+.container {
+  width: 95%;
+  max-width: 950px;
+  background: #1b1b1b;
+  padding: 2rem;
+  border-radius: 16px;
+}
+h1 { text-align: center; }
 
-  .status {
-    text-align: center;
-    font-size: 1.2rem;
-    padding: 0.75rem 1rem;
-    border-radius: 999px;
-    background: #222;
-    margin-bottom: 1.2rem;
-  }
+/* Toggle Switch */
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+  margin: 1rem 0;
+}
+.switch {
+  position: relative;
+  width: 60px;
+  height: 32px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  background: #555;
+  border-radius: 999px;
+  top: 0; left: 0; right: 0; bottom: 0;
+  transition: 0.3s;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 24px;
+  width: 24px;
+  left: 4px;
+  bottom: 4px;
+  background: white;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+input:checked + .slider {
+  background: #00af3f;
+}
+input:checked + .slider:before {
+  transform: translateX(28px);
+}
 
-  .row {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    justify-content: center;
-    margin-bottom: 1rem;
-  }
+/* Buttons */
+button {
+  border: none;
+  border-radius: 999px;
+  padding: 0.6rem 1.4rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.green { background:#00af3f;color:#fff }
+.gray { background:#444;color:#eee }
 
-  button {
-    cursor: pointer;
-    border-radius: 999px;
-    border: none;
-    padding: 0.75rem 1.4rem;
-    font-size: 0.95rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-  }
-  .btn-green { background: #00af3f; color: #fff; }
-  .btn-gray  { background: #444; color: #eee; }
-  .btn-blue  { background: #0077ff; color: #fff; }
-
-  input {
-    width: 100%;
-    padding: 0.9rem 1rem;
-    border-radius: 12px;
-    border: none;
-    background: #222;
-    color: #fff;
-    outline: none;
-    margin-bottom: 0.75rem;
-  }
-
-  .grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
-  @media (max-width: 800px) {
-    .grid { grid-template-columns: 1fr; }
-  }
-
-  .panel {
-    background: #222;
-    padding: 1rem;
-    border-radius: 14px;
-    border: 1px solid #333;
-  }
-
-  .teamBlock {
-    background: #1f1f1f;
-    border: 1px solid #333;
-    border-radius: 12px;
-    padding: 0.75rem;
-    margin-top: 0.75rem;
-  }
-  .teamBlock h3 {
-    margin: 0 0 0.5rem 0;
-    color: #ffd86b;
-  }
-  .player {
-    background: #333;
-    padding: 0.5rem 0.75rem;
-    border-radius: 10px;
-    margin: 0.35rem 0;
-  }
-
-  .scoreRow {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #1f1f1f;
-    border: 1px solid #333;
-    border-radius: 12px;
-    padding: 0.75rem;
-    margin-top: 0.6rem;
-  }
-  .scoreBtns button {
-    padding: 0.35rem 0.9rem;
-    font-weight: 800;
-  }
-  .btn-plus { background: #00af3f; color: #fff; }
-  .btn-minus { background: #d40000; color: #fff; }
+.panel {
+  background:#222;
+  padding:1rem;
+  border-radius:14px;
+  margin-top:1rem;
+}
 </style>
 </head>
 
 <body>
 <div class="container">
-  <h1>Host Control Panel</h1>
+<h1>Host Control Panel</h1>
 
-  <div id="pin" style="text-align:center;font-size:1.4rem;font-weight:800;margin-bottom:0.5rem;"></div>
-  <div id="status" class="status">Create a room to begin.</div>
+<button id="createRoom" class="green">Create Room</button>
+<h2 id="pin"></h2>
 
-  <div class="row">
-    <button class="btn-blue" id="createRoomBtn">Create Room</button>
-    <button class="btn-green" id="armBtn" disabled>Arm</button>
-    <button class="btn-gray" id="resetBtn" disabled>Reset</button>
-  </div>
+<!-- TEAM MODE TOGGLE -->
+<div class="toggle">
+  <strong>Team Mode</strong>
+  <label class="switch">
+    <input type="checkbox" id="teamToggle" checked>
+    <span class="slider"></span>
+  </label>
+</div>
 
-  <div class="grid">
-    <div class="panel">
-      <h2 style="margin-top:0;">Teams</h2>
-      <div style="color:#999;font-size:0.9rem;margin-bottom:0.75rem;">
-        Enter team names separated by commas, then click Update.
-      </div>
-      <input id="teamInput" placeholder="Red, Blue, Green, Yellow" />
-      <button class="btn-blue" id="setTeamsBtn" disabled>Update Teams</button>
+<div style="text-align:center;margin-bottom:1rem;color:#aaa;">
+  ON = Teams required · OFF = Solo play
+</div>
 
-      <h2 style="margin-top:1.5rem;">Players Joined</h2>
-      <div id="players"></div>
-    </div>
+<div style="text-align:center;">
+  <button class="green" id="armBtn">Arm</button>
+  <button class="gray" id="resetBtn">Reset</button>
+</div>
 
-    <div class="panel">
-      <h2 style="margin-top:0;">Scoreboard</h2>
-      <div id="scores"></div>
-    </div>
-  </div>
+<div class="panel">
+  <h3>Players Joined</h3>
+  <div id="players">None</div>
+</div>
+
+<div class="panel">
+  <h3>Scoreboard</h3>
+  <div id="scores"></div>
+</div>
 </div>
 
 <script>
 const socket = io();
 let pin = null;
 
-const pinEl = document.getElementById("pin");
-const statusEl = document.getElementById("status");
+const teamToggle = document.getElementById("teamToggle");
 const playersEl = document.getElementById("players");
 const scoresEl = document.getElementById("scores");
 
-const createRoomBtn = document.getElementById("createRoomBtn");
-const armBtn = document.getElementById("armBtn");
-const resetBtn = document.getElementById("resetBtn");
-const setTeamsBtn = document.getElementById("setTeamsBtn");
-const teamInput = document.getElementById("teamInput");
+document.getElementById("createRoom").onclick = () => socket.emit("createRoom");
+document.getElementById("armBtn").onclick = () => socket.emit("arm", pin);
+document.getElementById("resetBtn").onclick = () => socket.emit("reset", pin);
 
-createRoomBtn.onclick = () => socket.emit("createRoom");
-armBtn.onclick = () => socket.emit("arm", pin);
-resetBtn.onclick = () => socket.emit("reset", pin);
-
-setTeamsBtn.onclick = () => {
-  const teams = teamInput.value
-    .split(",")
-    .map(t => t.trim())
-    .filter(Boolean);
-
-  socket.emit("setTeams", { pin, teams });
+teamToggle.onchange = () => {
+  socket.emit("toggleTeamMode", {
+    pin,
+    enabled: teamToggle.checked
+  });
 };
 
-socket.on("roomCreated", (d) => {
+socket.on("roomCreated", d => {
   pin = d.pin;
-  pinEl.textContent = `Room PIN: ${pin}`;
-  statusEl.textContent = "Room created. Players can join now.";
-  armBtn.disabled = false;
-  resetBtn.disabled = false;
-  setTeamsBtn.disabled = false;
-
-  // Host joins their own room so they receive room events
+  document.getElementById("pin").textContent = "Room PIN: " + pin;
   socket.emit("joinRoom", { pin, name: "HOST", team: "Red" });
 });
 
-socket.on("roomInfo", ({ teams }) => {
-  // Keep host's input synced with current teams
-  teamInput.value = (teams || []).join(", ");
+socket.on("playerList", players => {
+  const filtered = players.filter(p => p.name !== "HOST");
+  playersEl.innerHTML = filtered.length
+    ? filtered.map(p => `${p.name} (${p.team})`).join("<br>")
+    : "None";
 });
 
-socket.on("playerList", (players) => {
-  // Remove HOST from the displayed list if present
-  const filtered = (players || []).filter(p => p.name !== "HOST");
-
-  if (filtered.length === 0) {
-    playersEl.innerHTML = `<div style="color:#999;">No players joined yet.</div>`;
-    return;
-  }
-
-  // Group by team
-  const grouped = {};
-  filtered.forEach(p => {
-    const key = p.team || "Unknown";
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(p.name);
-  });
-
-  let html = "";
-  Object.keys(grouped).forEach(team => {
-    html += `<div class="teamBlock"><h3>${team}</h3>`;
-    html += grouped[team].map(n => `<div class="player">${n}</div>`).join("");
-    html += `</div>`;
-  });
-
-  playersEl.innerHTML = html;
-});
-
-socket.on("scoreUpdate", (scores) => {
+socket.on("scoreUpdate", scores => {
   scoresEl.innerHTML = "";
-  const keys = Object.keys(scores || {});
-  if (keys.length === 0) {
-    scoresEl.innerHTML = `<div style="color:#999;">No score entries yet (players haven’t joined / teams not set).</div>`;
-    return;
-  }
-
-  keys.forEach((k) => {
-    const value = scores[k];
-    const row = document.createElement("div");
-    row.className = "scoreRow";
-    row.innerHTML = `
-      <div style="font-weight:800;">${k}</div>
-      <div class="scoreBtns">
-        <button class="btn-minus">−</button>
-        <span style="display:inline-block;min-width:40px;text-align:center;font-weight:900;">${value}</span>
-        <button class="btn-plus">+</button>
-      </div>
-    `;
-
-    const minusBtn = row.querySelector(".btn-minus");
-    const plusBtn = row.querySelector(".btn-plus");
-
-    minusBtn.onclick = () => socket.emit("updateScore", { pin, key: k, delta: -1 });
-    plusBtn.onclick = () => socket.emit("updateScore", { pin, key: k, delta: 1 });
-
-    scoresEl.appendChild(row);
+  Object.keys(scores).forEach(k => {
+    scoresEl.innerHTML += `<div>${k}: ${scores[k]}</div>`;
   });
 });
 
-socket.on("armed", () => {
-  statusEl.textContent = "Buzzers armed — waiting for first buzz!";
-});
-
-socket.on("winner", (p) => {
-  statusEl.textContent = `${p.team} – ${p.name} buzzed first!`;
-});
-
-socket.on("reset", () => {
-  statusEl.textContent = "Reset. Ready for next round.";
-});
-
-socket.on("roomExpired", () => {
-  alert("Room expired due to inactivity (2 hours).");
-  location.reload();
+socket.on("roomInfo", info => {
+  teamToggle.checked = info.teamMode;
 });
 </script>
 </body>

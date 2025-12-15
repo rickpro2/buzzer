@@ -51,6 +51,39 @@ io.on("connection", (socket) => {
     socket.emit("roomCreated", { pin });
   });
 
+// HOST toggles team mode
+socket.on("toggleTeamMode", ({ pin, enabled }) => {
+  const room = rooms[pin];
+  if (!room) return;
+
+  room.teamMode = enabled;
+  room.scores = {};
+  touchRoom(pin);
+
+  // Rebuild score buckets
+  Object.values(room.players).forEach(p => {
+    if (!enabled) {
+      p.team = "Solo";
+      room.scores[p.name] = 0;
+    } else {
+      // If teams were removed earlier, force reselect
+      if (!room.teams.includes(p.team)) {
+        p.team = room.teams[0] || "Team";
+      }
+      room.scores[p.team] = 0;
+    }
+  });
+
+  io.to(pin).emit("roomInfo", {
+    teamMode: room.teamMode,
+    teams: room.teams
+  });
+
+  io.to(pin).emit("scoreUpdate", room.scores);
+  io.to(pin).emit("playerList", Object.values(room.players));
+});
+
+
   // PLAYER checks room (loads teams BEFORE join)
   socket.on("checkRoom", (pin) => {
     const room = rooms[pin];
